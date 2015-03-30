@@ -54,3 +54,9 @@ uninstall-pylib:
 clean-pylib:
 	rm -rf "$(PYLIB_BUILDDIR)/build"
 	rm -rf "$(SETUPPY_MANIFEST)"
+
+
+.PHONY: python-checks
+python-checks:
+	pep8 --ignore=E501 $(PYLIB_SRCDIR)/syslogng
+	pylint -r n --rcfile=$(PYLIB_SRCDIR)/.pylintrc $(PYLIB_SRCDIR)/syslogng
