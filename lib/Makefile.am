@@ -88,6 +88,7 @@ pkginclude_HEADERS			+= \
 	lib/cfg-parser.h		\
 	lib/cfg-tree.h			\
 	lib/children.h			\
+	lib/cli.h				\
 	lib/crypto.h			\
 	lib/dnscache.h			\
 	lib/driver.h			\

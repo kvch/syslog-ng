@@ -23,6 +23,7 @@
  */
   
 #include "cfg.h"
+#include "cli.h"
 #include "module-config.h"
 #include "cfg-tree.h"
 #include "messages.h"

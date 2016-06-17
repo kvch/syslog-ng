@@ -95,6 +95,7 @@
  * needed them and it implements the command line options to parse them.
  * This is far from perfect. (Bazsi) */
 static gchar *preprocess_into = NULL;
+static gchar *parser_experssion = NULL;
 gboolean syntax_only = FALSE;
 gboolean interactive_mode = FALSE;
 
@@ -507,6 +508,7 @@ static GOptionEntry main_loop_options[] =
   { "syntax-only",       's',         0, G_OPTION_ARG_NONE, &syntax_only, "Only read and parse config file", NULL},
   { "control",           'c',         0, G_OPTION_ARG_STRING, &resolvedConfigurablePaths.ctlfilename, "Set syslog-ng control socket, default=" PATH_CONTROL_SOCKET, "<ctlpath>" },
   { "interactive",       'i',         0, G_OPTION_ARG_NONE, &interactive_mode, "Enable interactive mode" },
+  { "parser",            'p',         0, G_OPTION_ARG_STRING, &parser_experssion, "Enable interactive mode" },
   { NULL },
 };
 
