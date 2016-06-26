@@ -246,7 +246,7 @@ main(int argc, char *argv[])
       log_stderr = TRUE;
     }
 
-  if (syntax_only || debug_flag)
+  if (syntax_only || debug_flag || command_line_mode)
     {
       g_process_set_mode(G_PM_FOREGROUND);
     }
