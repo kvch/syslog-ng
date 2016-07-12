@@ -79,3 +79,32 @@ log_transport_file_new(gint fd)
   log_transport_file_init_instance(self, fd);
   return &self->super;
 }
+
+static gssize
+log_transport_stdin_read_method(LogTransport *s, gpointer buf, gsize buflen, LogTransportAuxData *aux)
+{
+  LogTransportFile *self = (LogTransportFile *) s;
+  gint rc;
+
+  rc = read(self->super.fd, buf, buflen);
+  /* This is not the correct place for stopping syslog-ng.
+   * Calling main_loop_exit_initiate should be in the event handler function.
+   * However, refactoring this part would be out of scope of this GSoC.
+   */
+  if (rc == 0)
+    raise(SIGTERM);
+
+  return rc;
+}
+
+LogTransport *
+log_transport_stdin_new(gint fd)
+{
+  LogTransportFile *self = g_new0(LogTransportFile, 1);
+
+  log_transport_init_instance(&self->super, fd);
+  self->super.read = log_transport_stdin_read_method;
+  self->super.write = NULL;
+  self->super.free_fn = log_transport_free_method;
+  return &self->super;
+}

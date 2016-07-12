@@ -36,5 +36,6 @@ struct _LogTransportFile
 
 void log_transport_file_init_instance(LogTransportFile *self, gint fd);
 LogTransport *log_transport_file_new(gint fd);
+LogTransport *log_transport_stdin_new(gint fd);
 
 #endif

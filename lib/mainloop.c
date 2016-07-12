@@ -301,7 +301,7 @@ main_loop_exit_timer_elapsed(void *arg)
   main_loop_worker_sync_call(main_loop_exit_finish);
 }
 
-static void
+void
 main_loop_exit_initiate(void)
 {
   if (main_loop_is_terminating())
