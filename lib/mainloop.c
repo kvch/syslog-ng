@@ -266,7 +266,7 @@ main_loop_reload_config_initiate(void)
   main_loop_old_config = current_configuration;
   app_pre_config_loaded();
   main_loop_new_config = cfg_new(0);
-  if (!cfg_read_config(main_loop_new_config, resolvedConfigurablePaths.cfgfilename, FALSE, NULL))
+  if (!cfg_open_config(main_loop_new_config, resolvedConfigurablePaths.cfgfilename) || !cfg_read_config(main_loop_new_config, FALSE, NULL))
     {
       cfg_free(main_loop_new_config);
       main_loop_new_config = NULL;
@@ -442,7 +442,13 @@ int
 main_loop_read_and_init_config(void)
 {
   current_configuration = cfg_new(0);
-  if (!cfg_read_config(current_configuration, resolvedConfigurablePaths.cfgfilename, syntax_only, preprocess_into))
+  if (!cfg_open_config(current_configuration, resolvedConfigurablePaths.cfgfilename))
+    {
+      return 1;
+    }
+
+  /* same retval for the sake of backward-compatibility */
+  if (!cfg_read_config(current_configuration, syntax_only, preprocess_into))
     {
       return 1;
     }
