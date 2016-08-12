@@ -440,9 +440,9 @@ cfg_open_config(GlobalConfig *self, const gchar *fname)
       msg_error("Error opening configuration file",
                 evt_tag_str(EVT_TAG_FILENAME, fname),
                 evt_tag_errno(EVT_TAG_OSERROR, errno));
+      return FALSE;
     }
-
-  return FALSE;
+   return TRUE; 
 }
 
 gboolean

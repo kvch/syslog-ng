@@ -39,6 +39,7 @@
 #include "plugin.h"
 #include "reloc.h"
 #include "resolved-configurable-paths.h"
+#include "string-list.h"
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -63,6 +64,8 @@ static gchar *installer_version = NULL;
 static gboolean display_version = FALSE;
 static gboolean display_module_registry = FALSE;
 static gboolean dummy = FALSE;
+
+
 
 #ifdef YYDEBUG
 extern int cfg_parser_debug;
@@ -246,7 +249,8 @@ main(int argc, char *argv[])
       log_stderr = TRUE;
     }
 
-  if (syntax_only || debug_flag || command_line_mode)
+  cli = cli_new(cli_var, command_line_mode);
+  if (syntax_only || debug_flag || cli->is_cli)
     {
       g_process_set_mode(G_PM_FOREGROUND);
     }

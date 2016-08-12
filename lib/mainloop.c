@@ -98,6 +98,11 @@ static gchar *preprocess_into = NULL;
 gboolean syntax_only = FALSE;
 gboolean interactive_mode = FALSE;
 gboolean command_line_mode = FALSE;
+gboolean cli_write_to_file = FALSE;
+Cli *cli = NULL;
+
+/* possible command line configs */
+gchar **cli_var = NULL;
 
 /*
  * This variable is used to detect that syslog-ng is being terminated, in which
@@ -442,9 +447,19 @@ int
 main_loop_read_and_init_config(void)
 {
   current_configuration = cfg_new(0);
-  if (!cfg_open_config(current_configuration, resolvedConfigurablePaths.cfgfilename))
+  if (cli->is_command_line_drivers)
     {
-      return 1;
+      if (!cli_setup_params(cli))
+          return 1;
+      if (!cli_init_cfg(cli, current_configuration))
+          return 1;
+      if (cli_write_to_file && !cli_write_generated_config_to_file(cli))
+          return 3;
+    }
+  else
+    {
+      if (!cfg_open_config(current_configuration, resolvedConfigurablePaths.cfgfilename))
+          return 1;
     }
 
   /* same retval for the sake of backward-compatibility */
@@ -515,6 +530,8 @@ static GOptionEntry main_loop_options[] =
   { "control",           'c',         0, G_OPTION_ARG_STRING, &resolvedConfigurablePaths.ctlfilename, "Set syslog-ng control socket, default=" PATH_CONTROL_SOCKET, "<ctlpath>" },
   { "interactive",       'i',         0, G_OPTION_ARG_NONE, &interactive_mode, "Enable interactive mode" },
   { "cli",               'l',         0, G_OPTION_ARG_NONE, &command_line_mode, "Run as a command line tool" },
+  { "write-to-file",     'w',         0, G_OPTION_ARG_NONE, &cli_write_to_file, "Write genenrated config to file", NULL},
+  { G_OPTION_REMAINING,  0,           0, G_OPTION_ARG_STRING_ARRAY, &cli_var, NULL, NULL },
   { NULL },
 };
 

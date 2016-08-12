@@ -26,12 +26,15 @@
 
 #include "syslog-ng.h"
 #include "thread-utils.h"
+#include "cli.h"
 
 
 extern gboolean syntax_only;
 extern gboolean command_line_mode;
+extern gchar **cli_var;
 extern gboolean __main_loop_is_terminating;
 extern ThreadId main_thread_handle;
+extern Cli *cli;
 
 typedef gpointer (*MainLoopTaskFunc)(gpointer user_data);
 
@@ -54,6 +57,9 @@ main_loop_is_terminating(void)
 {
   return __main_loop_is_terminating;
 }
+
+
+gboolean is_cli(void);
 
 void main_loop_reload_config(void);
 void main_loop_exit(void);
