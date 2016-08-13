@@ -98,7 +98,7 @@ static gchar *preprocess_into = NULL;
 gboolean syntax_only = FALSE;
 gboolean interactive_mode = FALSE;
 gboolean command_line_mode = FALSE;
-gboolean cli_write_to_file = FALSE;
+gchar *cli_debug_cfg_filename = NULL;
 Cli *cli = NULL;
 
 /* possible command line configs */
@@ -453,7 +453,7 @@ main_loop_read_and_init_config(void)
           return 1;
       if (!cli_init_cfg(cli, current_configuration))
           return 1;
-      if (cli_write_to_file && !cli_write_generated_config_to_file(cli))
+      if (!cli_debug_cfg_filename && !cli_write_generated_config_to_file(cli))
           return 3;
     }
   else
@@ -530,7 +530,7 @@ static GOptionEntry main_loop_options[] =
   { "control",           'c',         0, G_OPTION_ARG_STRING, &resolvedConfigurablePaths.ctlfilename, "Set syslog-ng control socket, default=" PATH_CONTROL_SOCKET, "<ctlpath>" },
   { "interactive",       'i',         0, G_OPTION_ARG_NONE, &interactive_mode, "Enable interactive mode" },
   { "cli",               'l',         0, G_OPTION_ARG_NONE, &command_line_mode, "Run as a command line tool" },
-  { "write-to-file",     'w',         0, G_OPTION_ARG_NONE, &cli_write_to_file, "Write genenrated config to file", NULL},
+  { "outputfile",        'o',         0, G_OPTION_ARG_FILENAME, &cli_debug_cfg_filename, "Write genenrated config to file", NULL},
   { G_OPTION_REMAINING,  0,           0, G_OPTION_ARG_STRING_ARRAY, &cli_var, NULL, NULL },
   { NULL },
 };

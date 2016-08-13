@@ -75,7 +75,7 @@ _get_cfg_string(CliParam *cfg, gchar *cfg_lines, gchar *cfg_path)
 }
 
 gboolean
-_write_to_file_pointer(Cli *self, gchar* cfg_lines, gchar *cfg_path, GlobalConfig *global_config)
+_inject_cfg_into_global_config(Cli *self, gchar* cfg_lines, gchar *cfg_path, GlobalConfig *global_config)
 {
   gchar generated_cfg_lines[2048] = "";
   if(sprintf(generated_cfg_lines, CFG_FILE_TEMPLATE, SYSLOG_NG_VERSION, cfg_lines, cfg_path) < 1)
@@ -98,7 +98,7 @@ cli_init_cfg(Cli *self, GlobalConfig *global_config)
       if (!_get_cfg_string(cli_param, cfg_lines, cfg_path))
           return FALSE;
     }
-  if (!_write_to_file_pointer(self, cfg_lines, cfg_path, global_config))
+  if (!_inject_cfg_into_global_config(self, cfg_lines, cfg_path, global_config))
       return FALSE;
 
   return TRUE;
@@ -162,7 +162,7 @@ cli_setup_params(Cli *cli)
 gboolean
 cli_write_generated_config_to_file(Cli *self)
 {
-  FILE *f = fopen("generated.conf", "w");
+  FILE *f = fopen(self->debug_cfg_filename, "w");
   if (f == NULL)
       return FALSE;
 
@@ -172,12 +172,13 @@ cli_write_generated_config_to_file(Cli *self)
 }
 
 Cli*
-cli_new(gchar **args, gboolean is_cli_param)
+cli_new(gchar **args, gboolean is_cli_param, gchar *debug_cfg_filename)
 {
   Cli *self = g_new0(Cli, 1);
   self->raw_params = args;
   self->is_command_line_drivers = (self->raw_params != NULL);
   self->is_cli = self->is_command_line_drivers || is_cli_param;
+  self->debug_cfg_filename = debug_cfg_filename;
   self->params = NULL;
   return self;
 }
