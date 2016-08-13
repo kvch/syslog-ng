@@ -115,10 +115,8 @@ _open_fd(const gchar *name, FileOpenOptions *open_opts, FilePermOptions *perm_op
 gboolean
 affile_is_linux_dev_stdin(const gchar *filename)
 {
-#ifdef __linux__
   if (strcmp(filename, "/dev/stdin") == 0)
     return TRUE;
-#endif
   return FALSE;
 }
 
