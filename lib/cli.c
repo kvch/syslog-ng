@@ -160,9 +160,9 @@ cli_setup_params(Cli *cli)
 }
 
 gboolean
-cli_write_generated_config_to_file(Cli *self)
+cli_write_generated_config_to_file(Cli *self, gchar *filename)
 {
-  FILE *f = fopen(self->debug_cfg_filename, "w");
+  FILE *f = fopen(filename, "w");
   if (f == NULL)
       return FALSE;
 
@@ -172,13 +172,12 @@ cli_write_generated_config_to_file(Cli *self)
 }
 
 Cli*
-cli_new(gchar **args, gboolean is_cli_param, gchar *debug_cfg_filename)
+cli_new(gchar **args, gboolean is_cli_param)
 {
   Cli *self = g_new0(Cli, 1);
   self->raw_params = args;
   self->is_command_line_drivers = (self->raw_params != NULL);
   self->is_cli = self->is_command_line_drivers || is_cli_param;
-  self->debug_cfg_filename = debug_cfg_filename;
   self->params = NULL;
   return self;
 }

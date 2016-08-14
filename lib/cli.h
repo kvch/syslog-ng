@@ -44,12 +44,11 @@ typedef struct _Cli
   gboolean is_cli;
   gboolean is_command_line_drivers;
   gchar *generated_config;
-  gchar *debug_cfg_filename;
 } Cli;
 
-Cli *cli_new(gchar **params, gboolean is_cli_param, gchar *debug_cfg_filename);
+Cli *cli_new(gchar **params, gboolean is_cli_param);
 gboolean cli_setup_params(Cli *cli);
 gboolean cli_init_cfg(Cli *cli, GlobalConfig *global_config);
-gboolean cli_write_generated_config_to_file(Cli *cli);
+gboolean cli_write_generated_config_to_file(Cli *cli, gchar* filename);
 
 #endif

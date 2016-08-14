@@ -452,14 +452,20 @@ main_loop_read_and_init_config(void)
       if (!cli_setup_params(cli))
           return 1;
       if (!cli_init_cfg(cli, current_configuration))
+        {
           return 1;
-      if (!cli_debug_cfg_filename && !cli_write_generated_config_to_file(cli))
+        }
+      if (cli_debug_cfg_filename && !cli_write_generated_config_to_file(cli, cli_debug_cfg_filename))
+        {
           return 3;
+        }
     }
   else
     {
       if (!cfg_open_config(current_configuration, resolvedConfigurablePaths.cfgfilename))
+        {
           return 1;
+        }
     }
 
   /* same retval for the sake of backward-compatibility */

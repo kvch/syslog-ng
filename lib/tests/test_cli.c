@@ -124,7 +124,7 @@ test_cli_init_cfg(void)
                         "@include scl.conf\n"
                         "source s_stdin { stdin(); };\n"
                         "destination d_stdout { stdout(); };\n"
-                        "parser my-name {  csvparser(); }\n"
+                        "parser my-name {  csvparser();};\n"
                         "log {source(s_stdin); destination(d_stdout); parser(my-name); };";
 
   assert_true(cli_init_cfg(cli, global_config), "Succesfully initialized config");

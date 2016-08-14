@@ -249,7 +249,7 @@ main(int argc, char *argv[])
       log_stderr = TRUE;
     }
 
-  cli = cli_new(cli_var, command_line_mode, cli_debug_cfg_filename);
+  cli = cli_new(cli_var, command_line_mode);
   if (syntax_only || debug_flag || cli->is_cli)
     {
       g_process_set_mode(G_PM_FOREGROUND);
