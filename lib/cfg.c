@@ -431,7 +431,7 @@ cfg_open_config(GlobalConfig *self, const gchar *fname)
   FILE *cfg_file;
 
   self->filename = fname;
-  if ((cfg_file = fopen(fname, "r")) != NULL)
+  if ((cfg_file = fopen(fname, "a")) != NULL)
     {
       self->cfg_file = cfg_file;
     }
