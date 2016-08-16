@@ -452,6 +452,7 @@ cfg_read_config(GlobalConfig *self, gboolean syntax_only, gchar *preprocess_into
   CfgLexer *lexer;
   GString *preprocess_output = g_string_sized_new(8192);
 
+  msg_debug("cfg_read_config");
   lexer = cfg_lexer_new(self->cfg_file, self->filename, preprocess_output);
   res = cfg_run_parser(self, lexer, &main_parser, (gpointer *) &self, NULL);
   fclose(self->cfg_file);

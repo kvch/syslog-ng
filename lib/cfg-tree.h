@@ -163,11 +163,13 @@ typedef struct _CfgTree
 gboolean cfg_tree_add_object(CfgTree *self, LogExprNode *rule);
 LogExprNode *cfg_tree_get_object(CfgTree *self, gint type, const gchar *name);
 GList *cfg_tree_get_objects(CfgTree *self);
+LogExprNode *cfg_tree_get_object_by_name(CfgTree *self, const gchar *name);
 
 gboolean cfg_tree_add_template(CfgTree *self, LogTemplate *template);
 LogTemplate *cfg_tree_lookup_template(CfgTree *self, const gchar *name);
 LogTemplate *cfg_tree_check_inline_template(CfgTree *self, const gchar *template_or_name, GError **error);
 
+const gchar *cfg_tree_get_type_of_driver(CfgTree *self, const gchar *name)
 gchar *cfg_tree_get_rule_name(CfgTree *self, gint content, LogExprNode *node);
 gchar *cfg_tree_get_child_id(CfgTree *self, gint content, LogExprNode *node);
 

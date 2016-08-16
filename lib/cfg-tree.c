@@ -989,6 +989,7 @@ cfg_tree_get_object(CfgTree *self, gint content, const gchar *name)
 {
   LogExprNode lookup_node;
 
+  msg_debug("cfg_tree_get_object");
   memset(&lookup_node, 0, sizeof(lookup_node));
   lookup_node.content = content;
   lookup_node.name = (gchar *) name;
@@ -1000,6 +1001,30 @@ GList *
 cfg_tree_get_objects(CfgTree *self)
 {
   return g_hash_table_get_values(self->objects);
+}
+
+const gchar *
+cfg_tree_get_type_of_driver(CfgTree *self, const gchar *name)
+{
+  LogExprNode *node = cfg_tree_get_object_by_name(self, name);
+  if (node != NULL)
+      return log_expr_node_get_content_name(node->content);
+  return NULL;
+}
+
+LogExprNode *
+cfg_tree_get_object_by_name(CfgTree *self, const gchar *name)
+{
+  gint i;
+  LogExprNode *node = NULL;
+  gint possible_types[] = { ENC_FILTER, ENC_PARSER, ENC_REWRITE };
+  for (i = 0; i < 3; i++)
+    {
+        node = cfg_tree_get_object(self, possible_types[i], name);
+        if (node != NULL)
+            return node;
+    }
+  return node;
 }
 
 gboolean

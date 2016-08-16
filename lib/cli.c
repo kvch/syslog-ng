@@ -21,6 +21,7 @@
  */
 
 
+#include "cfg-tree.h"
 #include "cli.h"
 #include "messages.h"
 #include "uuid.h"
@@ -232,11 +233,45 @@ cli_write_generated_config_to_file(Cli *self, gchar *filename)
   return TRUE;
 }
 
-Cli *
-cli_new(gchar **args, gboolean is_cli_param)
+gboolean
+_inject_cli_logpath(gchar *driver_references, GlobalConfig *global_config)
+{
+  ssize_t n;
+  size_t line_buf_len;
+  gchar *line_buf = NULL;
+  while ((n = getline(&line_buf, &line_buf_len, fp)) != -1) 
+    {
+      
+    }
+  return TRUE;
+}
+
+gboolean
+cli_setup_partial_config(Cli *self, GlobalConfig *global_config)
+{
+  gint i;
+  gchar *log_path_buffer[1000] = "";
+  for (i = 0; self->drivers[i]; i++)
+    {
+      gchar *driver_name = self->drivers[i];
+      gchar *driver_type = cfg_tree_get_type_of_driver(global_config->tree, driver_name);
+      gchar *driver_reference[100] = "";
+      if (sprintf(driver_reference, LOG_PATH_TEMPLATE, driver_type, driver_name) < 1)
+          return FALSE;
+      strcat(driver_reference, log_path_buffer);
+    }
+  if (strcmp(log_path_buffer, "") == 0)
+      return FALSE;
+
+  return _inject_cli_logpath(log_path_buffer, global_config);
+}
+
+Cli*
+cli_new(gchar **args, gchar **selected_drivers, gboolean is_cli_param)
 {
   Cli *self = g_new0(Cli, 1);
   self->raw_params = args;
+  self->drivers = selected_drivers;
   self->is_command_line_drivers = (self->raw_params != NULL);
   self->is_cli = self->is_command_line_drivers || is_cli_param;
   self->params = NULL;

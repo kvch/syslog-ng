@@ -40,15 +40,17 @@ CliParam *cli_param_new(gchar *type, gchar *cfg);
 typedef struct _Cli
 {
   gchar **raw_params;
+  gchar **drivers;
   GList *params;
   gboolean is_cli;
   gboolean is_command_line_drivers;
   gchar *generated_config;
 } Cli;
 
-Cli *cli_new(gchar **params, gboolean is_cli_param);
+Cli *cli_new(gchar **params, char **selected_drivers, gboolean is_cli_param);
 gboolean cli_setup_params(Cli *cli);
 void cli_initialize_configuration(Cli *cli, GlobalConfig *global_config);
 gboolean cli_write_generated_config_to_file(Cli *cli, gchar* filename);
+gboolean cli_setup_partial_config(Cli *self, GlobalConfig *global_config);
 
 #endif

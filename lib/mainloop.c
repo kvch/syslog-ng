@@ -98,6 +98,11 @@ static gchar *preprocess_into = NULL;
 gboolean syntax_only = FALSE;
 gboolean interactive_mode = FALSE;
 gboolean command_line_mode = FALSE;
+<<<<<<< HEAD
+=======
+gchar *cli_debug_cfg_filename = NULL;
+gchar **cli_selected_drivers = NULL;
+>>>>>>> poc: poc
 Cli *cli = NULL;
 
 /* possible command line configs */
@@ -485,6 +490,10 @@ main_loop_read_and_init_config(void)
     {
       return 1;
     }
+  if (!cli_selected_drivers && !cli_setup_partial_config(cli, current_configuration))
+    {
+      return 1;
+    }
 
   if (syntax_only || preprocess_into)
     {
@@ -548,6 +557,11 @@ static GOptionEntry main_loop_options[] =
   { "control",           'c',         0, G_OPTION_ARG_STRING, &resolvedConfigurablePaths.ctlfilename, "Set syslog-ng control socket, default=" PATH_CONTROL_SOCKET, "<ctlpath>" },
   { "interactive",       'i',         0, G_OPTION_ARG_NONE, &interactive_mode, "Enable interactive mode" },
   { "cli",               'l',         0, G_OPTION_ARG_NONE, &command_line_mode, "Run as a command line tool" },
+<<<<<<< HEAD
+=======
+  { "drivers",           'p',         0, G_OPTION_ARG_STRING_ARRAY, &cli_selected_drivers, "Select drivers to create partial config" },
+  { "cli-config-dump",   'o',         0, G_OPTION_ARG_FILENAME, &cli_debug_cfg_filename, "Write genenrated config to file", NULL},
+>>>>>>> poc: poc
   { G_OPTION_REMAINING,  0,           0, G_OPTION_ARG_STRING_ARRAY, &cli_var, NULL, NULL },
   { NULL },
 };
