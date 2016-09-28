@@ -41,13 +41,6 @@ _assert_filename_with_extension(PathUtilsTestCase c)
                    actual_filename_extension);
 }
 
-void
-_assert_filename_without_extension(const gchar *filename)
-{
-  const gchar *actual_filename_extension = get_filename_extension(filename);
-  cr_assert_null(actual_filename_extension, "No extension is expected. Filename: %s", filename);
-}
-
 Test(pathutils, test_get_filename_extension)
 {
   PathUtilsTestCase test_cases[] =
@@ -63,12 +56,18 @@ Test(pathutils, test_get_filename_extension)
   nr_of_cases = sizeof(test_cases) / sizeof(test_cases[0]);
   for (i = 0; i < nr_of_cases; i++)
     _assert_filename_with_extension(test_cases[i]);
-
 }
 
-Test(pathutils, test_get_filename_extension_without_extension)
+void
+_assert_filename_without_extension(const gchar *filename)
 {
-  gchar *test_cases[] =
+  const gchar *actual_filename_extension = get_filename_extension(filename);
+  cr_assert_null(actual_filename_extension, "No extension is expected. Filename: %s", filename);
+}
+
+Test(pathutils, test_get_filename_extension)
+{
+  gchar *test_cases_without_extension[] =
   {
     "filename",
     "",
