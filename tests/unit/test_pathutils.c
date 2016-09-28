@@ -22,29 +22,59 @@
 
 #include "testutils.h"
 #include "pathutils.h"
+#include <criterion/criterion.h>
 
-#define PATHUTILS_TESTCASE(testfunc, ...)  { testcase_begin("%s(%s)", #testfunc, #__VA_ARGS__); testfunc(__VA_ARGS__); testcase_end(); }
 
-static void
-test_get_filename_extension(void)
+typedef struct _PathUtilsTestCase
 {
-  assert_string(get_filename_extension("test.csv"), "csv", "test.csv, expected extension: csv");
-  assert_string(get_filename_extension(".test.csv"), "csv", ".test.csv, expected extension: csv");
-  assert_string(get_filename_extension("test.csv.orig"), "orig", "test.csv.orig, expected extension: orig");
-  assert_string(get_filename_extension("test.csv~"), "csv~", "test.csv~, expected extension:csv~");
-  assert_string(get_filename_extension("1.x") , "x", "x, expected extension is x");
-  assert_true(get_filename_extension("filename") == NULL, "filename, expected extension is NULL");
-  assert_true(get_filename_extension("") == NULL, "input is empty, expected extension is NULL");
-  assert_true(get_filename_extension(".config") == NULL, ".config, expected extension is NULL");
-  assert_true(get_filename_extension(".") == NULL, ". , expected extension is NULL");
-  assert_true(get_filename_extension("...") == NULL, "..., expected extension is NULL");
-  assert_true(get_filename_extension("1.") == NULL, "1., expected extension is NULL");
-  assert_true(get_filename_extension(NULL) == NULL, "input is NULL, expected extension is NULL");
+  const gchar *filename;
+  const gchar *expected_extension;
+} PathUtilsTestCase;
+
+
+void
+_assert_filename_with_extension(PathUtilsTestCase c)
+{
+  const gchar *actual_filename_extension = get_filename_extension(c.filename);
+  cr_assert_str_eq(actual_filename_extension, c.expected_extension,
+                   "Filename: %s, Expected extension: %s, actual extension: %s", c.filename, c.expected_extension,
+                   actual_filename_extension);
 }
 
-int main(int argc, char **argv)
+void
+_assert_filename_without_extension(const gchar *filename)
 {
-  PATHUTILS_TESTCASE(test_get_filename_extension);
+  const gchar *actual_filename_extension = get_filename_extension(filename);
+  cr_assert_null(actual_filename_extension, "No extension is expected. Filename: %s", filename);
+}
 
-  return 0;
+Test(pathutils, test_get_filename_extension)
+{
+  PathUtilsTestCase test_cases_with_extension[] =
+  {
+    {"test.csv", "csv"},
+    {".test.csv", "csv"},
+    {"test.csv.orig", "orig"},
+    {"test.csv~", "csv~"},
+    {"1.x", "x"},
+  };
+  gchar *test_cases_without_extension[] =
+  {
+    "filename",
+    "",
+    ".config",
+    ".",
+    "...",
+    "1.",
+    NULL,
+  };
+  gint i, nr_of_extension_cases, nr_of_extensionless_cases;
+
+  nr_of_extension_cases = sizeof(test_cases_with_extension) / sizeof(test_cases_with_extension[0]);
+  for (i = 0; i < nr_of_extension_cases; i++)
+    _assert_filename_with_extension(test_cases_with_extension[i]);
+
+  nr_of_extensionless_cases = sizeof(test_cases_without_extension) / sizeof(test_cases_without_extension[0]);
+  for (i = 0; i < nr_of_extensionless_cases; i++)
+    _assert_filename_without_extension(test_cases_without_extension[i]);
 }
