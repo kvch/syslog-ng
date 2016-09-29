@@ -20,63 +20,84 @@
  * COPYING for details.
  *
  */
-#include "testutils.h"
 #include "type-hinting.h"
 #include "apphook.h"
 
+#include <criterion/criterion.h>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
 
-#define assert_type_hint(hint,expected)                                 \
-  do                                                                    \
-    {                                                                   \
-      TypeHint t;                                                       \
-      GError *e = NULL;                                                 \
-                                                                        \
-      assert_true(type_hint_parse(hint, &t, &e),                        \
-                  "Parsing '%s' as type hint", hint);                   \
-                                                                        \
-      assert_gint(t, expected,                                          \
-                  "Parsing '%s' as type hint results in correct type", hint); \
-    } while(0)                                                          \
+
+typedef struct _TypeHintTestCase
+{
+  const gchar *typename;
+  const gint expected;
+
+} TypeHintTestCase;
+
+__attribute__((constructor))
+static void global_test_init(void)
+{
+  app_startup();
+}
+
+__attribute__((destructor))
+static void global_test_deinit(void)
+{
+  app_shutdown();
+}
 
 static void
 assert_error(GError *error, gint code, const gchar *expected_message)
 {
-  assert_not_null(error, "GError expected to be non-NULL");
+  cr_assert_not(error, "GError expected to be non-NULL");
 
-  assert_gint(error->code, code, "GError error code is as expected");
+  cr_assert_eq(error->code, code, "GError error code is as expected");
   if (expected_message)
-    assert_string(error->message, expected_message, "GError error message is as expected");
+    cr_assert_str_eq(error->message, expected_message, "GError error message is as expected");
 }
 
 static void
-test_type_hint_parse(void)
+assert_type_hint(TypeHintTestCase c)
 {
-  testcase_begin("Testing type hint parsing");
+  TypeHint t;
+  GError *e = NULL;
 
-  assert_type_hint(NULL, TYPE_HINT_STRING);
-  assert_type_hint("string", TYPE_HINT_STRING);
-  assert_type_hint("literal", TYPE_HINT_LITERAL);
-  assert_type_hint("boolean", TYPE_HINT_BOOLEAN);
-  assert_type_hint("int", TYPE_HINT_INT32);
-  assert_type_hint("int32", TYPE_HINT_INT32);
-  assert_type_hint("int64", TYPE_HINT_INT64);
-  assert_type_hint("double", TYPE_HINT_DOUBLE);
-  assert_type_hint("datetime", TYPE_HINT_DATETIME);
-  assert_type_hint("default", TYPE_HINT_DEFAULT);
+  cr_assert(type_hint_parse(c.typename, &t, &e), "Parsing '%s' as type hint", c.typename);
+  cr_assert_eq(t, c.expected,"Parsing '%s' as type hint results in correct type", c.typename);
+}
+
+Test(type_hints, test_type_hint_parse)
+{
+  TypeHintTestCase test_cases[] =
+  {
+    {NULL, TYPE_HINT_STRING},
+    {"string", TYPE_HINT_STRING},
+    {"literal", TYPE_HINT_LITERAL},
+    {"boolean", TYPE_HINT_BOOLEAN},
+    {"int", TYPE_HINT_INT32},
+    {"int32", TYPE_HINT_INT32},
+    {"int64", TYPE_HINT_INT64},
+    {"double", TYPE_HINT_DOUBLE},
+    {"datetime", TYPE_HINT_DATETIME},
+    {"default", TYPE_HINT_DEFAULT},
+  };
+  gint i, nr_of_cases;
+
+  nr_of_cases = sizeof(test_cases) / sizeof(test_cases[0]);
+  for (i = 0; i < nr_of_cases; i++)
+    assert_type_hint(test_cases[i]);
 
   TypeHint t;
   GError *e = NULL;
-  assert_false(type_hint_parse("invalid-hint", &t, &e),
+  cr_assert_not(type_hint_parse("invalid-hint", &t, &e),
                "Parsing an invalid hint results in an error.");
 
   assert_error(e, TYPE_HINTING_INVALID_TYPE, "Unknown type specified in type hinting: invalid-hint");
-
-  testcase_end();
 }
 
+/*
 #define assert_type_cast(target,value,out)                              \
   do                                                                    \
     {                                                                   \
@@ -132,7 +153,6 @@ test_type_cast(void)
 
   testcase_begin("Testing type casting");
 
-  /* Boolean */
 
   assert_bool_cast("True", TRUE);
   assert_bool_cast("true", TRUE);
@@ -148,15 +168,12 @@ test_type_cast(void)
     assert_type_cast_fail(boolean, "booyah", &ob);
   }
 
-  /* int32 */
   assert_int_cast("12345", 32, 12345);
   assert_type_cast_fail(int32, "12345a", &i32);
 
-  /* int64 */
   assert_int_cast("12345", 64, 12345);
   assert_type_cast_fail(int64, "12345a", &i64);
 
-  /* double */
   assert_double_cast("1.0", 1.0);
   assert_type_cast_fail(double, "2.0bad", &d);
   assert_type_cast_fail(double, "bad", &d);
@@ -168,7 +185,6 @@ test_type_cast(void)
   assert_double_cast("INF", INFINITY);
 #endif
 
-  /* datetime */
   assert_type_cast(datetime_int, "12345", &dt);
   assert_guint64(dt, 12345000, "Casting '12345' to datetime works");
   assert_type_cast(datetime_int, "12345.5", &dt);
@@ -184,16 +200,4 @@ test_type_cast(void)
 
   testcase_end();
 }
-
-int
-main (void)
-{
-  app_startup();
-
-  test_type_hint_parse();
-  test_type_cast();
-
-  app_shutdown();
-
-  return 0;
-}
+*/

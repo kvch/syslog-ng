@@ -23,30 +23,28 @@
  */
 
 #include "pathutils.h"
+#include <criterion/criterion.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include "libtest/testutils.h"
-#include <unistd.h>
 
-void
-test_is_directory_return_false_in_case_of_regular_file(void)
+Test(pathutils, test_is_directory_return_false_in_case_of_regular_file)
 {
-  int fd = open("test.file", O_CREAT | O_RDWR, 0644);
-  assert_false(fd < 0, "open error");
-  ssize_t done = write(fd, "a", 1);
-  assert_false(done != 1, "write error");
-  int error = close(fd);
-  assert_false(error, "close error");
+  const gchar *FILENAME = "test.file";
+  int fd, error;
+  ssize_t done;
 
-  assert_false(is_file_directory("test.file"), "File is not a directory!");
+  fd = open(FILENAME, O_CREAT | O_RDWR, 0644);
+  cr_assert_geq(fd, 0, "open error; fd=%d", fd);
 
-  error = unlink("test.file");
-  assert_false(error, "unlink error");
-}
+  done = write(fd, "a", 1);
+  cr_assert_eq(done, 1, "write error; done=%d", done);
 
-int
-main()
-{
-  test_is_directory_return_false_in_case_of_regular_file();
+  error = close(fd);
+  cr_assert_not(error, "close error");
+  cr_assert_not(is_file_directory(FILENAME), "File is not a directory!");
+
+  error = unlink(FILENAME);
+  cr_assert_not(error, "unlink error");
 }
