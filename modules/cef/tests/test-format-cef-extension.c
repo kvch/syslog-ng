@@ -31,6 +31,30 @@
 #define _EXPECT_SKIP_BAD_PROPERTY(...) _expect_skip_bad_property_va(__VA_ARGS__, NULL)
 #define _EXPECT_CEF_RESULT_FORMAT(X, ...) _expect_cef_result_format_va(X, __VA_ARGS__, NULL);
 
+typedef struct _CEFTestCase
+{
+  const gchar *format;
+  const NVPairMock *expected_nv_pairs;
+  const gint nr_of_expected_nv_pairs;
+} CEFTestCase;
+
+__attribute__((constructor))
+static void global_test_init(void)
+{
+  app_startup();
+  putenv("TZ=UTC");
+  tzset();
+  init_template_tests();
+  plugin_load_module("cef", configuration, NULL);
+}
+
+__attribute__((destructor))
+static void global_test_deinit(void)
+{
+  deinit_template_tests();
+  app_shutdown();
+}
+
 static void
 _expect_cef_result_properties_list(const gchar *expected, va_list ap)
 {
@@ -63,12 +87,9 @@ _expect_skip_bad_property_va(const gchar *expected, ...)
 }
 
 static void
-_expect_cef_result_format_va(const gchar *format, const gchar *expected, ...)
+_expect_cef_result_format_va(CEFTestCase c)
 {
-  va_list ap;
-  va_start(ap, expected);
-  LogMessage *msg = message_from_list(ap);
-  va_end(ap);
+  LogMessage *msg = message_from_list(c.nv_pairs, c.nr_of_expected_nv_pairs);
 
   configuration->template_options.on_error = ON_ERROR_DROP_MESSAGE | ON_ERROR_SILENT;
   assert_template_format_msg(format, expected, msg);
@@ -100,12 +121,15 @@ _test_multiple_properties_with_space(void)
                      ".cef.dst", "10.0.0.1");
 }
 
-static void
-_test_multiple_properties(void)
+Test(cef_format_extension, test_multiple_properties)
 {
-  _EXPECT_CEF_RESULT("k=v x=y",
-                     ".cef.k", "v",
-                     ".cef.x", "y");
+  NVPairMock nv_pairs[] = 
+  {
+    {"cef.k", "v"},
+    {"cef.x", "y"},
+  };
+  CEFTestCase test_case = { "k=v x=y", nv_pairs, 2 };
+  _expect_cef_result_format_va(test_case);
 }
 
 static void
@@ -214,29 +238,3 @@ _test_macro_parity(void)
   _EXPECT_SKIP_BAD_PROPERTY("", "k");
 }
 
-int
-main(int argc, char *argv[])
-{
-  app_startup();
-  putenv("TZ=UTC");
-  tzset();
-  init_template_tests();
-  plugin_load_module("cef", configuration, NULL);
-
-  _test_filter();
-  _test_multiple_properties_with_space();
-  _test_multiple_properties();
-  _test_drop_property();
-  _test_drop_message();
-  _test_empty();
-  _test_inline();
-  _test_space();
-  _test_charset();
-  _test_escaping();
-  _test_prefix();
-  _test_macro_parity();
-  _test_null_in_value();
-
-  deinit_template_tests();
-  app_shutdown();
-}

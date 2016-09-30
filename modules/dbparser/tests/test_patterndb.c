@@ -32,6 +32,7 @@
 #include "timerwheel.h"
 #include "libtest/msg_parse_lib.h"
 
+#include <criterion/criterion.h>
 #include <stdio.h>
 #include <sys/time.h>
 #include <time.h>
@@ -47,6 +48,16 @@ gchar *filename;
 GPtrArray *messages;
 gboolean keep_patterndb_state = FALSE;
 
+__attribute__((constructor))
+static void global_test_init(void)
+{
+}
+
+__attribute__((destructor))
+static void global_test_deinit(void)
+{
+}
+
 static void
 _emit_func(LogMessage *msg, gboolean synthetic, gpointer user_data)
 {
@@ -60,7 +71,7 @@ assert_pdb_file_valid(const gchar *filename_, const gchar *pdb)
   gboolean success;
 
   success = pdb_file_validate(filename_, &error);
-  assert_true(success, "Error validating patterndb, error=%s\n>>>\n%s\n<<<", error ? error->message : "unknown", pdb);
+  cr_assert(success, "Error validating patterndb, error=%s\n>>>\n%s\n<<<", error ? error->message : "unknown", pdb);
   g_clear_error(&error);
 }
 
@@ -77,8 +88,8 @@ _load_pattern_db_from_string(const gchar *pdb)
 
   assert_pdb_file_valid(filename, pdb);
 
-  assert_true(pattern_db_reload_ruleset(patterndb, configuration, filename), "Error loading ruleset [[[%s]]]", pdb);
-  assert_string(pattern_db_get_ruleset_pub_date(patterndb), "2010-02-22", "Invalid pubdate");
+  cr_assert(pattern_db_reload_ruleset(patterndb, configuration, filename), "Error loading ruleset [[[%s]]]", pdb);
+  cr_assert_str_eq(pattern_db_get_ruleset_pub_date(patterndb), "2010-02-22", "Invalid pubdate");
 }
 
 static void
@@ -133,7 +144,7 @@ _advance_time(gint timeout)
 static LogMessage *
 _get_output_message(gint ndx)
 {
-  assert_true(ndx < messages->len, "Expected the %d. message, but no such message was returned by patterndb\n", ndx);
+  cr_assert_lt(ndx, messages->len, "Expected the %d. message, but no such message was returned by patterndb\n", ndx);
   return (LogMessage *) g_ptr_array_index(messages, ndx);
 }
 
@@ -168,7 +179,7 @@ _feed_message_to_correllation_state(const gchar *program, const gchar *message, 
   msg = _construct_message_with_nvpair(program, message, name, value);
   result = _process(msg);
   log_msg_unref(msg);
-  assert_true(result, "patterndb expected to match but it didn't");
+  cr_assert(result, "patterndb expected to match but it didn't");
   _dont_reset_patterndb_state_for_the_next_call();
 }
 
@@ -181,7 +192,7 @@ assert_msg_with_program_matches_and_nvpair_equals(const gchar *program, const gc
 
   msg = _construct_message(program, message);
   result = _process(msg);
-  assert_true(result, "patterndb expected to match but it didn't");
+  cr_assert(result, "patterndb expected to match but it didn't");
   assert_log_message_value(msg, log_msg_get_value_handle(name), expected_value);
   log_msg_unref(msg);
 }
@@ -214,7 +225,7 @@ assert_msg_matches_and_has_tag(const gchar *pattern, const gchar *tag, gboolean 
 
   msg = _construct_message("prog1", pattern);
   result = _process(msg);
-  assert_true(result, "patterndb expected to match but it didn't");
+  cr_assert(result, "patterndb expected to match but it didn't");
 
   if (set)
     assert_log_message_has_tag(msg, tag);
@@ -246,7 +257,7 @@ assert_msg_matches_and_output_message_nvpair_equals_with_timeout(const gchar *pa
 static void
 assert_no_such_output_message(gint ndx)
 {
-  assert_true(ndx >= messages->len, "Unexpected message generated at %d index\n", ndx);
+  cr_assert_geq(ndx, messages->len, "Unexpected message generated at %d index\n", ndx);
 }
 
 void

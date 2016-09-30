@@ -1,3 +1,4 @@
+if ENABLE_CRITERION
 if ENABLE_STOMP
 modules_afstomp_tests_test_stomp_proto_CFLAGS = \
     $(TEST_CFLAGS) \
@@ -14,4 +15,5 @@ modules_afstomp_tests_TESTS =   \
 
 check_PROGRAMS +=   \
     $(modules_afstomp_tests_TESTS)
+endif
 endif

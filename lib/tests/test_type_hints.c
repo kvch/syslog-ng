@@ -33,8 +33,13 @@ typedef struct _TypeHintTestCase
 {
   const gchar *typename;
   const gint expected;
-
 } TypeHintTestCase;
+
+typedef struct _BooleanHintTestCase
+{
+  const gchar *value;
+  const gboolean expected;
+} BooleanHintTestCase;
 
 __attribute__((constructor))
 static void global_test_init(void)
@@ -51,7 +56,7 @@ static void global_test_deinit(void)
 static void
 assert_error(GError *error, gint code, const gchar *expected_message)
 {
-  cr_assert_not(error, "GError expected to be non-NULL");
+  cr_assert_not_null(error, "GError expected to be non-NULL");
 
   cr_assert_eq(error->code, code, "GError error code is as expected");
   if (expected_message)
@@ -98,14 +103,6 @@ Test(type_hints, test_type_hint_parse)
 }
 
 /*
-#define assert_type_cast(target,value,out)                              \
-  do                                                                    \
-    {                                                                   \
-      assert_true(type_cast_to_##target(value, out, &error),            \
-                  "Casting '%s' to %s works", value, #target);          \
-      assert_no_error(error, "Successful casting returns no error");    \
-    } while(0)
-
 #define assert_type_cast_fail(target,value,out)                 \
   do                                                            \
     {                                                           \
@@ -113,15 +110,6 @@ Test(type_hints, test_type_hint_parse)
                    "Casting '%s' to %s fails", value, #target); \
       assert_error(error, TYPE_HINTING_INVALID_CAST, NULL);     \
       error = NULL;                                             \
-    } while(0)
-
-#define assert_bool_cast(value,expected)                                \
-  do                                                                    \
-    {                                                                   \
-      gboolean ob;                                                      \
-      assert_type_cast(boolean, value, &ob);                            \
-      assert_gboolean(ob, expected, "'%s' casted to boolean is %s",     \
-                      value, #expected);                                \
     } while(0)
 
 #define assert_double_cast(value,expected)                              \
@@ -141,27 +129,42 @@ Test(type_hints, test_type_hint_parse)
       assert_gint##width(i, expected, "'%s' casted to int%s is %u",     \
                          value, expected);                              \
     } while(0) \
+*/
 
+  /*
 static void
-test_type_cast(void)
+assert_bool_cast(BooleanHintTestCase c)
 {
-  GError *error = NULL;
+  gboolean ob;
+  GError error;
+
+  cr_assert(type_cast_to_boolean(c.value, ob, &error), "Casting '%s' to boolean does not work", value);
+  assert_no_error(error, "Successful casting returns no error");    \
+  assert_gboolean(ob, c.expected, "'%s' casted to boolean is %s", value, #expected);
+}
+
+Test(type_hints, test_type_cast)
+{
   gint32 i32;
   gint64 i64;
   guint64 dt;
   gdouble d;
 
-  testcase_begin("Testing type casting");
-
-
-  assert_bool_cast("True", TRUE);
-  assert_bool_cast("true", TRUE);
-  assert_bool_cast("1", TRUE);
-  assert_bool_cast("totally true", TRUE);
-  assert_bool_cast("False", FALSE);
-  assert_bool_cast("false", FALSE);
-  assert_bool_cast("0", FALSE);
-  assert_bool_cast("fatally false", FALSE);
+  BooleanHintTestCase boolean_test_cases[] =
+  {
+      {"True", TRUE},
+      {"true", TRUE},
+      {"1", TRUE},
+      {"totally true", TRUE},
+      {"False", FALSE},
+      {"false", FALSE},
+      {"0", FALSE},
+      {"fatally false", FALSE},
+  };
+  gint nr_of_boolean_cases, i;
+  nr_of_boolean_cases = sizeof(boolean_test_cases) / sizeof(boolean_test_cases[0]);
+  for (i = 0; i < nr_of_boolean_cases; i++)
+      assert_bool_cast(boolean_test_cases[i]);
 
   {
     gboolean ob;
@@ -197,7 +200,5 @@ test_type_cast(void)
   assert_guint64(dt, 12345543, "Casting '12345.54321' to datetime works");
 
   assert_type_cast_fail(datetime_int, "invalid", &dt);
-
-  testcase_end();
 }
-*/
+  */

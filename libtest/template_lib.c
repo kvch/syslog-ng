@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 Balabit
+ * Copyright (c) 2012-2016 Balabit
  * Copyright (c) 2012 Balázs Scheidler
  *
  * This library is free software; you can redistribute it and/or
@@ -22,10 +22,10 @@
  *
  */
 
-#include "testutils.h"
 #include "template_lib.h"
 #include "msg_parse_lib.h"
 
+#include <criterion/criterion.h>
 #include <string.h>
 
 void
@@ -43,24 +43,16 @@ deinit_template_tests(void)
 }
 
 LogMessage *
-message_from_list(va_list ap)
+message_from_list(NVPairMock *nv_pairs, gint nr_of_nvpairs)
 {
-  char *key, *value;
   LogMessage *msg = create_empty_message();
+  gint i;
 
   if (!msg)
     return NULL;
 
-  key = va_arg(ap, char *);
-  while (key)
-    {
-      value = va_arg(ap, char *);
-      if (!value)
-        return msg;
-
-      log_msg_set_value_by_name(msg, key, value, -1);
-      key = va_arg(ap, char *);
-    }
+  for (i = 0; i < nr_of_nvpairs; i++)
+    log_msg_set_value_by_name(msg, nv_pairs[i]->name, nv_pairs[i]->value, -1);
 
   return msg;
 }
@@ -127,8 +119,7 @@ compile_template(const gchar *template, gboolean escaping)
 
   log_template_set_escape(templ, escaping);
   success = log_template_compile(templ, template, &error);
-  expect_true(success, "template expected to compile cleanly,"
-              " but it didn't, template=%s, error=%s",
+  expect_true(success, "template expected to compile cleanly, but it didn't, template=%s, error=%s",
               template, error ? error->message : "(none)");
   g_clear_error(&error);
 
@@ -161,8 +152,7 @@ assert_template_format_with_escaping_msg(const gchar *template, gboolean escapin
   const gchar *context_id = "test-context-id";
 
   log_template_format(templ, msg, NULL, LTZ_LOCAL, 999, context_id, res);
-  expect_nstring(res->str, res->len, expected, strlen(expected),
-                 "template test failed, template=%s", template);
+  expect_nstring(res->str, res->len, expected, strlen(expected), "template test failed, template=%s", template);
   log_template_unref(templ);
   g_string_free(res, TRUE);
 }
@@ -215,13 +205,21 @@ assert_template_failure(const gchar *template, const gchar *expected_error)
   LogTemplate *templ = log_template_new(configuration, NULL);
   GError *error = NULL;
 
-  expect_false(log_template_compile(templ, template, &error),
-               "compilation failure expected to template,"
-               " but success was returned, template=%s, expected_error=%s\n",
-               template, expected_error);
-  expect_true(strstr(error ? error->message : "", expected_error) != NULL,
-              "FAIL: compilation error doesn't match, error=%s, expected_error=%s\n",
-              error->message, expected_error);
+  cr_expect_not(log_template_compile(templ, template, &error),
+                "compilation failure expected to template,"
+                " but success was returned, template=%s, expected_error=%s\n",
+                template, expected_error);
+  cr_expect(strstr(error ? error->message : "", expected_error) != NULL,
+            "FAIL: compilation error doesn't match, error=%s, expected_error=%s\n",
+            error->message, expected_error);
   g_clear_error(&error);
   log_template_unref(templ);
+}
+
+void
+assert_templates_format(TemplateFormatTestCase *c, gint nr_of_cases)
+{
+  gint i;
+  for (i = 0; i < nr_of_cases; i++)
+    assert_template_format(c->template, c->expected);
 }

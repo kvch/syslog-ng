@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2015 Balabit
+ * Copyright (c) 2010-2016 Balabit
  * Copyright (c) 2010-2015 Balázs Scheidler
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #include "apphook.h"
 #include "plugin.h"
 #include "cfg.h"
+#include <criterion/criterion.h>
 
 static void
 add_dummy_template_to_configuration(void)
@@ -33,6 +34,22 @@ add_dummy_template_to_configuration(void)
   assert_true(log_template_compile(dummy, "dummy template expanded $HOST", NULL),
               "Unexpected error compiling dummy template");
   cfg_tree_add_template(&configuration->tree, dummy);
+}
+
+__attribute__((constructor))
+static void global_test_init(void)
+{
+  app_startup();
+  init_template_tests();
+  add_dummy_template_to_configuration();
+  plugin_load_module("basicfuncs", configuration, NULL);
+}
+
+__attribute__((destructor))
+static void global_test_deinit(void)
+{
+  deinit_template_tests();
+  app_shutdown();
 }
 
 static void
@@ -65,110 +82,119 @@ free_log_message_array(GPtrArray *messages)
   g_ptr_array_free(messages, TRUE);
 }
 
-void
-test_cond_funcs(void)
+Test(basicfuncs, test_cond_funcs)
 {
-  assert_template_format_with_context("$(grep 'facility(local3)' $PID)", "23323,23323");
-  assert_template_format_with_context("$(grep -m 1 'facility(local3)' $PID)", "23323");
-  assert_template_format_with_context("$(grep 'facility(local3)' $PID $PROGRAM)", "23323,syslog-ng,23323,syslog-ng");
-  assert_template_format_with_context("$(grep 'facility(local4)' $PID)", "");
-  assert_template_format_with_context("$(grep ('$FACILITY' eq 'local4') $PID)", "");
-  assert_template_format_with_context("$(grep ('$FACILITY(' eq 'local3(') $PID)", "23323,23323");
-  assert_template_format_with_context("$(grep ('$FACILITY(' eq 'local4)') $PID)", "");
-  assert_template_format_with_context("$(grep \\'$FACILITY\\'\\ eq\\ \\'local4\\' $PID)", "");
+  TemplateFormatTestCase test_cases[] =
+  {
+      {"$(grep 'facility(local3)' $PID)", "23323,23323"},
+      {"$(grep -m 1 'facility(local3)' $PID)", "23323"},
+      {"$(grep 'facility(local3)' $PID $PROGRAM)", "23323,syslog-ng,23323,syslog-ng"},
+      {"$(grep 'facility(local4)' $PID)", ""},
+      {"$(grep ('$FACILITY' eq 'local4') $PID)", ""},
+      {"$(grep ('$FACILITY(' eq 'local3(') $PID)", "23323,23323"},
+      {"$(grep ('$FACILITY(' eq 'local4)') $PID)", ""},
+      {"$(grep \\'$FACILITY\\'\\ eq\\ \\'local4\\' $PID)", ""},
+      {"$(if 'facility(local4)' alma korte)", "korte"},
+      {"$(if 'facility(local3)' alma korte)", "alma"},
+      {"$(if '\"$FACILITY\" lt \"local3\"' alma korte)", "korte"},
+      {"$(if '\"$FACILITY\" le \"local3\"' alma korte)", "alma"},
+      {"$(if '\"$FACILITY\" eq \"local3\"' alma korte)", "alma"},
+      {"$(if '\"$FACILITY\" ne \"local3\"' alma korte)", "korte"},
+      {"$(if '\"$FACILITY\" gt \"local3\"' alma korte)", "korte"},
+      {"$(if '\"$FACILITY\" ge \"local3\"' alma korte)", "alma"},
+      {"$(if '\"$FACILITY_NUM\" < \"19\"' alma korte)", "korte"},
+      {"$(if '\"$FACILITY_NUM\" <= \"19\"' alma korte)", "alma"},
+      {"$(if '\"$FACILITY_NUM\" == \"19\"' alma korte)", "alma"},
+      {"$(if '\"$FACILITY_NUM\" != \"19\"' alma korte)", "korte"},
+      {"$(if '\"$FACILITY_NUM\" > \"19\"' alma korte)", "korte"},
+      {"$(if '\"$FACILITY_NUM\" >= \"19\"' alma korte)", "alma"},
+      {"$(if '\"$FACILITY_NUM\" >= \"19\" and \"kicsi\" eq \"nagy\"' alma korte)", "korte"},
+      {"$(if '\"$FACILITY_NUM\" >= \"19\" or \"kicsi\" eq \"nagy\"' alma korte)", "alma"},
+      {"$(grep 'facility(local3)' $PID)@0", "23323"},
+      {"$(grep 'facility(local3)' $PID)@1", "23323"},
+      {"$(grep 'facility(local3)' $PID)@2", ""},
+      {"$(or 1 \"\" 2)", "1"},
+      {"$(or \"\" 2)", "2"},
+      {"$(or \"\" \"\")", ""},
+      {"$(or)", ""},
+  };
+  gint i, nr_of_cases;
 
-  assert_template_format_with_context("$(if 'facility(local4)' alma korte)", "korte");
-  assert_template_format_with_context("$(if 'facility(local3)' alma korte)", "alma");
-
-  assert_template_format_with_context("$(if '\"$FACILITY\" lt \"local3\"' alma korte)", "korte");
-  assert_template_format_with_context("$(if '\"$FACILITY\" le \"local3\"' alma korte)", "alma");
-  assert_template_format_with_context("$(if '\"$FACILITY\" eq \"local3\"' alma korte)", "alma");
-  assert_template_format_with_context("$(if '\"$FACILITY\" ne \"local3\"' alma korte)", "korte");
-  assert_template_format_with_context("$(if '\"$FACILITY\" gt \"local3\"' alma korte)", "korte");
-  assert_template_format_with_context("$(if '\"$FACILITY\" ge \"local3\"' alma korte)", "alma");
-
-  assert_template_format_with_context("$(if '\"$FACILITY_NUM\" < \"19\"' alma korte)", "korte");
-  assert_template_format_with_context("$(if '\"$FACILITY_NUM\" <= \"19\"' alma korte)", "alma");
-  assert_template_format_with_context("$(if '\"$FACILITY_NUM\" == \"19\"' alma korte)", "alma");
-  assert_template_format_with_context("$(if '\"$FACILITY_NUM\" != \"19\"' alma korte)", "korte");
-  assert_template_format_with_context("$(if '\"$FACILITY_NUM\" > \"19\"' alma korte)", "korte");
-  assert_template_format_with_context("$(if '\"$FACILITY_NUM\" >= \"19\"' alma korte)", "alma");
-  assert_template_format_with_context("$(if '\"$FACILITY_NUM\" >= \"19\" and \"kicsi\" eq \"nagy\"' alma korte)",
-                                      "korte");
-  assert_template_format_with_context("$(if '\"$FACILITY_NUM\" >= \"19\" or \"kicsi\" eq \"nagy\"' alma korte)", "alma");
-
-  assert_template_format_with_context("$(grep 'facility(local3)' $PID)@0", "23323");
-  assert_template_format_with_context("$(grep 'facility(local3)' $PID)@1", "23323");
-  assert_template_format_with_context("$(grep 'facility(local3)' $PID)@2", "");
-
-  assert_template_format_with_context("$(or 1 \"\" 2)", "1");
-  assert_template_format_with_context("$(or \"\" 2)", "2");
-  assert_template_format_with_context("$(or \"\" \"\")", "");
-  assert_template_format_with_context("$(or)", "");
+  nr_of_cases = sizeof(test_cases) / sizeof(test_cases[0]);
+  for (i = 0; i < nr_of_cases; i++)
+      assert_template_format_with_context(test_cases[i].template, test_cases[i].expected);
 }
 
 void
 test_str_funcs(void)
 {
-  assert_template_format("$(ipv4-to-int $SOURCEIP)", "168496141");
+  TemplateFormatTestCase test_cases[] =
+  {
+    {"$(ipv4-to-int $SOURCEIP)", "168496141"},
 
-  assert_template_format("$(length $HOST $PID)", "5 5");
-  assert_template_format("$(length $HOST)", "5");
-  assert_template_format("$(length)", "");
+    {"$(length $HOST $PID)", "5 5"},
+    {"$(length $HOST)", "5"},
+    {"$(length)", ""},
 
-  assert_template_format("$(substr $HOST 1 3)", "zor");
-  assert_template_format("$(substr $HOST 1)", "zorp");
-  assert_template_format("$(substr $HOST -1)", "p");
-  assert_template_format("$(substr $HOST -2 1)", "r");
+    {"$(substr $HOST 1 3)", "zor"},
+    {"$(substr $HOST 1)", "zorp"},
+    {"$(substr $HOST -1)", "p"},
+    {"$(substr $HOST -2 1)", "r"},
 
-  assert_template_format("$(strip ${APP.STRIP1})", "value");
-  assert_template_format("$(strip ${APP.STRIP2})", "value");
-  assert_template_format("$(strip ${APP.STRIP3})", "value");
-  assert_template_format("$(strip ${APP.STRIP4})", "value");
-  assert_template_format("$(strip ${APP.STRIP5})", "");
+    {"$(strip ${APP.STRIP1})", "value"},
+    {"$(strip ${APP.STRIP2})", "value"},
+    {"$(strip ${APP.STRIP3})", "value"},
+    {"$(strip ${APP.STRIP4})", "value"},
+    {"$(strip ${APP.STRIP5})", ""},
 
-  assert_template_format("$(strip ${APP.STRIP1} ${APP.STRIP2} ${APP.STRIP3} ${APP.STRIP4} ${APP.STRIP5})",
-                         "value value value value ");
+    {"$(strip ${APP.STRIP1} ${APP.STRIP2} ${APP.STRIP3} ${APP.STRIP4} ${APP.STRIP5})", "value value value value "},
 
-  assert_template_format("$(sanitize alma/bela)", "alma_bela");
-  assert_template_format("$(sanitize -r @ alma/bela)", "alma@bela");
-  assert_template_format("$(sanitize -i @ alma@bela)", "alma_bela");
-  assert_template_format("$(sanitize -i '@/l ' alma@/bela)", "a_ma__be_a");
-  assert_template_format("$(sanitize alma\x1b_bela)", "alma__bela");
-  assert_template_format("$(sanitize -C alma\x1b_bela)", "alma\x1b_bela");
+    {"$(sanitize alma/bela)", "alma_bela"},
+    {"$(sanitize -r @ alma/bela)", "alma@bela"},
+    {"$(sanitize -i @ alma@bela)", "alma_bela"},
+    {"$(sanitize -i '@/l ' alma@/bela)", "a_ma__be_a"},
+    {"$(sanitize alma\x1b_bela)", "alma__bela"},
+    {"$(sanitize -C alma\x1b_bela)", "alma\x1b_bela"},
 
-  assert_template_format("$(sanitize $HOST $PROGRAM)", "bzorp/syslog-ng");
+    {"$(sanitize $HOST $PROGRAM)", "bzorp/syslog-ng"},
 
-  assert_template_format("$(indent-multi-line 'foo\nbar')", "foo\n\tbar");
+    {"$(indent-multi-line 'foo\nbar')", "foo\n\tbar"},
 
-  assert_template_format("$(lowercase ŐRÜLT ÍRÓ)", "őrült író");
-  assert_template_format("$(uppercase őrült író)", "ŐRÜLT ÍRÓ");
+    {"$(lowercase ŐRÜLT ÍRÓ)", "őrült író"},
+    {"$(uppercase őrült író)", "ŐRÜLT ÍRÓ"},
 
-  assert_template_format("$(replace-delimiter \"\t\" \",\" \"hello\tworld\")", "hello,world");
+    {"$(replace-delimiter \"\t\" \",\" \"hello\tworld\")", "hello,world"},
 
-  assert_template_format("$(padding foo 10)", "       foo");
-  assert_template_format("$(padding foo 10 x)", "xxxxxxxfoo");
-  assert_template_format("$(padding foo 10 abc)", "abcabcafoo");
+    {"$(padding foo 10)", "       foo"},
+    {"$(padding foo 10 x)", "xxxxxxxfoo"},
+    {"$(padding foo 10 abc)", "abcabcafoo"},
+  };
+
+  assert_templates_format(test_cases, sizeof(test_cases) / sizeof(test_cases[0]));
 }
 
-void
-test_numeric_funcs(void)
+Test(basicsfuncs, test_numeric_funcs)
 {
-  assert_template_format("$(+ $FACILITY_NUM 1)", "20");
-  assert_template_format("$(+ -1 -1)", "-2");
-  assert_template_format("$(- $FACILITY_NUM 1)", "18");
-  assert_template_format("$(- $FACILITY_NUM 20)", "-1");
-  assert_template_format("$(* $FACILITY_NUM 2)", "38");
-  assert_template_format("$(/ $FACILITY_NUM 2)", "9");
-  assert_template_format("$(% $FACILITY_NUM 3)", "1");
-  assert_template_format("$(/ $FACILITY_NUM 0)", "NaN");
-  assert_template_format("$(% $FACILITY_NUM 0)", "NaN");
-  assert_template_format("$(+ foo bar)", "NaN");
-  assert_template_format("$(/ 2147483648 1)", "2147483648");
-  assert_template_format("$(+ 5000000000 5000000000)", "10000000000");
-  assert_template_format("$(% 10000000000 5000000001)", "4999999999");
-  assert_template_format("$(* 5000000000 2)", "10000000000");
-  assert_template_format("$(- 10000000000 5000000000)", "5000000000");
+  TemplateFormatTestCase test_cases[] =
+  {
+    {"$(+ $FACILITY_NUM 1)", "20"},
+    {"$(+ -1 -1)", "-2"},
+    {"$(- $FACILITY_NUM 1)", "18"},
+    {"$(- $FACILITY_NUM 20)", "-1"},
+    {"$(* $FACILITY_NUM 2)", "38"},
+    {"$(/ $FACILITY_NUM 2)", "9"},
+    {"$(% $FACILITY_NUM 3)", "1"},
+    {"$(/ $FACILITY_NUM 0)", "NaN"},
+    {"$(% $FACILITY_NUM 0)", "NaN"},
+    {"$(+ foo bar)", "NaN"},
+    {"$(/ 2147483648 1)", "2147483648"},
+    {"$(+ 5000000000 5000000000)", "10000000000"},
+    {"$(% 10000000000 5000000001)", "4999999999"},
+    {"$(* 5000000000 2)", "10000000000"},
+    {"$(- 10000000000 5000000000)", "5000000000"},
+  };
+
+  assert_templates_format(test_cases, sizeof(test_cases) / sizeof(test_cases[0]));
 }
 
 typedef struct
@@ -190,8 +216,7 @@ _test_macros_with_context(const gchar *id, const gchar *numbers[], const MacroAn
   free_log_message_array(messages);
 }
 
-void
-test_numeric_aggregate_simple(void)
+Test(basicfuncs, test_numeric_aggregate_simple)
 {
   _test_macros_with_context(
     "NUMBER", (const gchar *[])
@@ -207,8 +232,7 @@ test_numeric_aggregate_simple(void)
   });
 }
 
-void
-test_numeric_aggregate_invalid_values(void)
+Test(basicfuncs, test_numeric_aggregate_invalid_values)
 {
   _test_macros_with_context(
     "NUMBER", (const gchar *[])
@@ -224,8 +248,7 @@ test_numeric_aggregate_invalid_values(void)
   });
 }
 
-void
-test_numeric_aggregate_full_invalid_values(void)
+Test(basicfuncs, test_numeric_aggregate_full_invalid_values)
 {
   _test_macros_with_context(
     "NUMBER", (const gchar *[])
@@ -241,16 +264,7 @@ test_numeric_aggregate_full_invalid_values(void)
   });
 }
 
-void
-test_numeric_aggregate_funcs(void)
-{
-  test_numeric_aggregate_simple();
-  test_numeric_aggregate_invalid_values();
-  test_numeric_aggregate_full_invalid_values();
-}
-
-void
-test_misc_funcs(void)
+Test(basicfuncs, test_misc_funcs)
 {
   unsetenv("OHHELLO");
   setenv("TEST_ENV", "test-env", 1);
@@ -259,28 +273,8 @@ test_misc_funcs(void)
   assert_template_format("$(env TEST_ENV)", "test-env");
 }
 
-static void
-test_tf_template(void)
+Test(basicfuncs, test_tf_template)
 {
   assert_template_format("foo $(template dummy) bar", "foo dummy template expanded bzorp bar");
   assert_template_failure("foo $(template unknown) bar", "Unknown template function or template \"unknown\"");
-}
-
-int
-main(int argc G_GNUC_UNUSED, char *argv[] G_GNUC_UNUSED)
-{
-  app_startup();
-  init_template_tests();
-  add_dummy_template_to_configuration();
-  plugin_load_module("basicfuncs", configuration, NULL);
-
-  test_cond_funcs();
-  test_str_funcs();
-  test_numeric_funcs();
-  test_numeric_aggregate_funcs();
-  test_misc_funcs();
-  test_tf_template();
-
-  deinit_template_tests();
-  app_shutdown();
 }

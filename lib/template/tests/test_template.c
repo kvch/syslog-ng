@@ -33,6 +33,7 @@
 #include "timeutils.h"
 #include "plugin.h"
 
+#include <criterion/criterion.h>
 #include <time.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -41,6 +42,27 @@
 GCond *thread_ping;
 GMutex *thread_lock;
 gboolean thread_start;
+
+__attribute__((constructor))
+static void global_test_init(void)
+{
+  app_startup();
+
+  init_template_tests();
+  plugin_load_module("basicfuncs", configuration, NULL);
+  configuration->template_options.frac_digits = 3;
+  configuration->template_options.time_zone_info[LTZ_LOCAL] = time_zone_info_new(NULL);
+
+  putenv("TZ=MET-1METDST");
+  tzset();
+}
+
+__attribute__((destructor))
+static void global_test_deinit(void)
+{
+  deinit_template_tests();
+  app_shutdown();
+}
 
 static gpointer
 format_template_thread(gpointer s)
@@ -105,147 +127,159 @@ assert_template_format_multi_thread(const gchar *template, const gchar *expected
   log_msg_unref(msg);
 }
 
-static void
-test_macros(void)
+Test(template, test_macros)
 {
   /* pri 3, fac 19 == local3 */
 
-  assert_template_format("$FACILITY", "local3");
-  assert_template_format("$FACILITY_NUM", "19");
-  assert_template_format("$PRIORITY", "err");
-  assert_template_format("$LEVEL", "err");
-  assert_template_format("$LEVEL_NUM", "3");
-  assert_template_format("$TAG", "9b");
-  assert_template_format("$TAGS", "alma,korte,citrom");
-  assert_template_format("$PRI", "155");
-  assert_template_format("$DATE", "Feb 11 10:34:56.000");
-  assert_template_format("$FULLDATE", "2006 Feb 11 10:34:56.000");
-  assert_template_format("$ISODATE", "2006-02-11T10:34:56.000+01:00");
-  assert_template_format("$STAMP", "Feb 11 10:34:56.000");
-  assert_template_format("$YEAR", "2006");
-  assert_template_format("$YEAR_DAY", "042");
-  assert_template_format("$MONTH", "02");
-  assert_template_format("$MONTH_WEEK", "1");
-  assert_template_format("$MONTH_ABBREV", "Feb");
-  assert_template_format("$MONTH_NAME", "February");
-  assert_template_format("$DAY", "11");
-  assert_template_format("$HOUR", "10");
-  assert_template_format("$MIN", "34");
-  assert_template_format("$SEC", "56");
-  assert_template_format("$WEEKDAY", "Sat");
-  assert_template_format("$WEEK_DAY", "7");
-  assert_template_format("$WEEK_DAY_NAME", "Saturday");
-  assert_template_format("$WEEK_DAY_ABBREV", "Sat");
-  assert_template_format("$WEEK", "06");
-  assert_template_format("$UNIXTIME", "1139650496.000");
-  assert_template_format("$TZOFFSET", "+01:00");
-  assert_template_format("$TZ", "+01:00");
-  assert_template_format("$R_DATE", "Feb 11 19:58:35.639");
-  assert_template_format("$R_FULLDATE", "2006 Feb 11 19:58:35.639");
-  assert_template_format("$R_ISODATE", "2006-02-11T19:58:35.639+01:00");
-  assert_template_format("$R_STAMP", "Feb 11 19:58:35.639");
-  assert_template_format("$R_YEAR", "2006");
-  assert_template_format("$R_YEAR_DAY", "042");
-  assert_template_format("$R_MONTH", "02");
-  assert_template_format("$R_MONTH_WEEK", "1");
-  assert_template_format("$R_MONTH_ABBREV", "Feb");
-  assert_template_format("$R_MONTH_NAME", "February");
-  assert_template_format("$R_DAY", "11");
-  assert_template_format("$R_HOUR", "19");
-  assert_template_format("$R_MIN", "58");
-  assert_template_format("$R_SEC", "35");
-  assert_template_format("$R_WEEKDAY", "Sat");
-  assert_template_format("$R_WEEK_DAY", "7");
-  assert_template_format("$R_WEEK_DAY_NAME", "Saturday");
-  assert_template_format("$R_WEEK_DAY_ABBREV", "Sat");
-  assert_template_format("$R_WEEK", "06");
-  assert_template_format("$R_UNIXTIME", "1139684315.639");
-  assert_template_format("$R_TZOFFSET", "+01:00");
-  assert_template_format("$R_TZ", "+01:00");
-  assert_template_format("$S_DATE", "Feb 11 10:34:56.000");
-  assert_template_format("$S_FULLDATE", "2006 Feb 11 10:34:56.000");
-  assert_template_format("$S_ISODATE", "2006-02-11T10:34:56.000+01:00");
-  assert_template_format("$S_STAMP", "Feb 11 10:34:56.000");
-  assert_template_format("$S_YEAR", "2006");
-  assert_template_format("$S_YEAR_DAY", "042");
-  assert_template_format("$S_MONTH", "02");
-  assert_template_format("$S_MONTH_WEEK", "1");
-  assert_template_format("$S_MONTH_ABBREV", "Feb");
-  assert_template_format("$S_MONTH_NAME", "February");
-  assert_template_format("$S_DAY", "11");
-  assert_template_format("$S_HOUR", "10");
-  assert_template_format("$S_MIN", "34");
-  assert_template_format("$S_SEC", "56");
-  assert_template_format("$S_WEEKDAY", "Sat");
-  assert_template_format("$S_WEEK_DAY", "7");
-  assert_template_format("$S_WEEK_DAY_NAME", "Saturday");
-  assert_template_format("$S_WEEK_DAY_ABBREV", "Sat");
-  assert_template_format("$S_WEEK", "06");
-  assert_template_format("$S_UNIXTIME", "1139650496.000");
-  assert_template_format("$S_TZOFFSET", "+01:00");
-  assert_template_format("$S_TZ", "+01:00");
-  assert_template_format("$HOST_FROM", "kismacska");
-  assert_template_format("$FULLHOST_FROM", "kismacska");
-  assert_template_format("$HOST", "bzorp");
-  assert_template_format("$FULLHOST", "bzorp");
-  assert_template_format("$PROGRAM", "syslog-ng");
-  assert_template_format("$PID", "23323");
-  assert_template_format("$MSGHDR", "syslog-ng[23323]:");
-  assert_template_format("$MSG", "árvíztűrőtükörfúrógép");
-  assert_template_format("$MESSAGE", "árvíztűrőtükörfúrógép");
-  assert_template_format("$SOURCEIP", "10.11.12.13");
-  assert_template_format("$RCPTID", "555");
+  TemplateFormatTestCase test_cases[] =
+  {
+    {"$FACILITY", "local3"},
+    {"$FACILITY_NUM", "19"},
+    {"$PRIORITY", "err"},
+    {"$LEVEL", "err"},
+    {"$LEVEL_NUM", "3"},
+    {"$TAG", "9b"},
+    {"$TAGS", "alma,korte,citrom"},
+    {"$PRI", "155"},
+    {"$DATE", "Feb 11 10:34:56.000"},
+    {"$FULLDATE", "2006 Feb 11 10:34:56.000"},
+    {"$ISODATE", "2006-02-11T10:34:56.000+01:00"},
+    {"$STAMP", "Feb 11 10:34:56.000"},
+    {"$YEAR", "2006"},
+    {"$YEAR_DAY", "042"},
+    {"$MONTH", "02"},
+    {"$MONTH_WEEK", "1"},
+    {"$MONTH_ABBREV", "Feb"},
+    {"$MONTH_NAME", "February"},
+    {"$DAY", "11"},
+    {"$HOUR", "10"},
+    {"$MIN", "34"},
+    {"$SEC", "56"},
+    {"$WEEKDAY", "Sat"},
+    {"$WEEK_DAY", "7"},
+    {"$WEEK_DAY_NAME", "Saturday"},
+    {"$WEEK_DAY_ABBREV", "Sat"},
+    {"$WEEK", "06"},
+    {"$UNIXTIME", "1139650496.000"},
+    {"$TZOFFSET", "+01:00"},
+    {"$TZ", "+01:00"},
+    {"$R_DATE", "Feb 11 19:58:35.639"},
+    {"$R_FULLDATE", "2006 Feb 11 19:58:35.639"},
+    {"$R_ISODATE", "2006-02-11T19:58:35.639+01:00"},
+    {"$R_STAMP", "Feb 11 19:58:35.639"},
+    {"$R_YEAR", "2006"},
+    {"$R_YEAR_DAY", "042"},
+    {"$R_MONTH", "02"},
+    {"$R_MONTH_WEEK", "1"},
+    {"$R_MONTH_ABBREV", "Feb"},
+    {"$R_MONTH_NAME", "February"},
+    {"$R_DAY", "11"},
+    {"$R_HOUR", "19"},
+    {"$R_MIN", "58"},
+    {"$R_SEC", "35"},
+    {"$R_WEEKDAY", "Sat"},
+    {"$R_WEEK_DAY", "7"},
+    {"$R_WEEK_DAY_NAME", "Saturday"},
+    {"$R_WEEK_DAY_ABBREV", "Sat"},
+    {"$R_WEEK", "06"},
+    {"$R_UNIXTIME", "1139684315.639"},
+    {"$R_TZOFFSET", "+01:00"},
+    {"$R_TZ", "+01:00"},
+    {"$S_DATE", "Feb 11 10:34:56.000"},
+    {"$S_FULLDATE", "2006 Feb 11 10:34:56.000"},
+    {"$S_ISODATE", "2006-02-11T10:34:56.000+01:00"},
+    {"$S_STAMP", "Feb 11 10:34:56.000"},
+    {"$S_YEAR", "2006"},
+    {"$S_YEAR_DAY", "042"},
+    {"$S_MONTH", "02"},
+    {"$S_MONTH_WEEK", "1"},
+    {"$S_MONTH_ABBREV", "Feb"},
+    {"$S_MONTH_NAME", "February"},
+    {"$S_DAY", "11"},
+    {"$S_HOUR", "10"},
+    {"$S_MIN", "34"},
+    {"$S_SEC", "56"},
+    {"$S_WEEKDAY", "Sat"},
+    {"$S_WEEK_DAY", "7"},
+    {"$S_WEEK_DAY_NAME", "Saturday"},
+    {"$S_WEEK_DAY_ABBREV", "Sat"},
+    {"$S_WEEK", "06"},
+    {"$S_UNIXTIME", "1139650496.000"},
+    {"$S_TZOFFSET", "+01:00"},
+    {"$S_TZ", "+01:00"},
+    {"$HOST_FROM", "kismacska"},
+    {"$FULLHOST_FROM", "kismacska"},
+    {"$HOST", "bzorp"},
+    {"$FULLHOST", "bzorp"},
+    {"$PROGRAM", "syslog-ng"},
+    {"$PID", "23323"},
+    {"$MSGHDR", "syslog-ng[23323]:"},
+    {"$MSG", "árvíztűrőtükörfúrógép"},
+    {"$MESSAGE", "árvíztűrőtükörfúrógép"},
+    {"$SOURCEIP", "10.11.12.13"},
+    {"$RCPTID", "555"},
 
-  assert_template_format("$SEQNUM", "999");
-  assert_template_format("$CONTEXT_ID", "test-context-id");
-  assert_template_format("$UNIQID", "cafebabe@000000000000022b");
+    {"$SEQNUM", "999"},
+    {"$CONTEXT_ID", "test-context-id"},
+    {"$UNIQID", "cafebabe@000000000000022b"},
+  };
+  assert_templates_format(test_cases, sizeof(test_cases) / sizeof(test_cases[0]));
 }
 
-static void
-test_nvpairs(void)
+Test(template, test_nvpairs)
 {
-  assert_template_format("$PROGRAM/var/log/messages/$HOST/$HOST_FROM/$MONTH$DAY${QQQQQ}valami",
-                         "syslog-ng/var/log/messages/bzorp/kismacska/0211valami");
-  assert_template_format("${APP.VALUE}", "value");
-  assert_template_format("${APP.VALUE:-ures}", "value");
-  assert_template_format("${APP.VALUE2:-ures}", "ures");
-  assert_template_format("${1}", "first-match");
-  assert_template_format("$1", "first-match");
-  assert_template_format("$$$1$$", "$first-match$");
+  TemplateFormatTestCase test_cases[] =
+  {
+    {"$PROGRAM/var/log/messages/$HOST/$HOST_FROM/$MONTH$DAY${QQQQQ}valami", "syslog-ng/var/log/messages/bzorp/kismacska/0211valami"},
+    {"${APP.VALUE}", "value"},
+    {"${APP.VALUE:-ures}", "value"},
+    {"${APP.VALUE2:-ures}", "ures"},
+    {"${1}", "first-match"},
+    {"$1", "first-match"},
+    {"$$$1$$", "$first-match$"},
+  };
+  assert_templates_format(test_cases, sizeof(test_cases) / sizeof(test_cases[0]));
 }
 
-static void
-test_template_functions(void)
+Test(template, test_template_functions)
 {
   /* template functions */
-  assert_template_format("$(echo $HOST $PID)", "bzorp 23323");
-  assert_template_format("$(echo \"$(echo $HOST)\" $PID)", "bzorp 23323");
-  assert_template_format("$(echo \"$(echo '$(echo $HOST)')\" $PID)", "bzorp 23323");
-  assert_template_format("$(echo \"$(echo '$(echo $HOST)')\" $PID)", "bzorp 23323");
-  assert_template_format("$(echo '\"$(echo $(echo $HOST))\"' $PID)", "\"bzorp\" 23323");
+  TemplateFormatTestCase test_cases[] =
+  {
+    {"$(echo $HOST $PID)", "bzorp 23323"},
+    {"$(echo \"$(echo $HOST)\" $PID)", "bzorp 23323"},
+    {"$(echo \"$(echo '$(echo $HOST)')\" $PID)", "bzorp 23323"},
+    {"$(echo \"$(echo '$(echo $HOST)')\" $PID)", "bzorp 23323"},
+    {"$(echo '\"$(echo $(echo $HOST))\"' $PID)", "\"bzorp\" 23323"},
+  };
+
+  assert_templates_format(test_cases, sizeof(test_cases) / sizeof(test_cases[0]));
 }
 
-static void
-test_message_refs(void)
+Test(template, test_message_refs)
 {
   /* message refs */
   assert_template_format_with_context("$(echo ${HOST}@0 ${PID}@1)", "bzorp 23323");
   assert_template_format_with_context("$(echo $HOST $PID)@0", "bzorp 23323");
 }
 
-static void
-test_syntax_errors(void)
+Test(template, test_syntax_errors)
 {
   /* template syntax errors */
-  assert_template_failure("${unbalanced_brace", "'}' is missing");
-  assert_template_format("$unbalanced_brace}", "}");
-  assert_template_format("$}", "$}");
+  TemplateFormatTestCase test_cases[] =
+  {
+    {"$unbalanced_brace}", "}"},
+    {"$}", "$}"},
+    {"$unbalanced_paren)", ")"},
+  };
+
+  assert_templates_format(test_cases, sizeof(test_cases) / sizeof(test_cases[0]));
+
   assert_template_failure("$(unbalanced_paren", "missing function name or inbalanced '('");
-  assert_template_format("$unbalanced_paren)", ")");
+  assert_template_failure("${unbalanced_brace", "'}' is missing");
 }
 
-static void
-test_compat(void)
+Test(template, test_compat)
 {
   gint old_version;
 
@@ -266,8 +300,7 @@ test_compat(void)
   configuration->user_version = old_version;
 }
 
-static void
-test_multi_thread(void)
+Test(template, test_multi_thread)
 {
   /* name-value pair */
   assert_template_format_multi_thread("alma $HOST bela", "alma bzorp bela");
@@ -276,8 +309,7 @@ test_multi_thread(void)
                                       "dani bzorp Feb 11 10:34:56.000 huha balint");
 }
 
-static void
-test_escaping(void)
+Test(template, test_escaping)
 {
   assert_template_format_with_escaping("${APP.QVALUE}", FALSE, "\"value\"");
   assert_template_format_with_escaping("${APP.QVALUE}", TRUE, "\\\"value\\\"");
@@ -287,8 +319,7 @@ test_escaping(void)
                                        TRUE, "\\\"value\\\"");
 }
 
-static void
-test_user_template_function(void)
+Test(template, test_user_template_function)
 {
   LogTemplate *template;
 
@@ -299,44 +330,14 @@ test_user_template_function(void)
   log_template_unref(template);
 }
 
-static void
-test_template_function_args(void)
+Test(template, test_template_function_args)
 {
-  assert_template_format("$(echo foo bar)", "foo bar");
-  assert_template_format("$(echo 'foobar' \"barfoo\")", "foobar barfoo");
-  assert_template_format("$(echo foo '' bar)", "foo  bar");
-  assert_template_format("$(echo foo '')", "foo ");
-}
-
-int
-main(int argc G_GNUC_UNUSED, char *argv[] G_GNUC_UNUSED)
-{
-  app_startup();
-
-  init_template_tests();
-  plugin_load_module("basicfuncs", configuration, NULL);
-  configuration->template_options.frac_digits = 3;
-  configuration->template_options.time_zone_info[LTZ_LOCAL] = time_zone_info_new(NULL);
-
-
-  putenv("TZ=MET-1METDST");
-  tzset();
-
-  test_macros();
-  test_nvpairs();
-  test_template_functions();
-  test_message_refs();
-  test_syntax_errors();
-  test_compat();
-  test_multi_thread();
-  test_escaping();
-  test_template_function_args();
-  test_user_template_function();
-  /* multi-threaded expansion */
-
-
-  deinit_template_tests();
-  app_shutdown();
-
-  return 0;
+  TemplateFormatTestCase test_cases[] =
+  {
+    {"$(echo foo bar)", "foo bar"},
+    {"$(echo 'foobar' \"barfoo\")", "foobar barfoo"},
+    {"$(echo foo '' bar)", "foo  bar"},
+    {"$(echo foo '')", "foo "},
+  };
+  assert_templates_format(test_cases, sizeof(test_cases) / sizeof(test_cases[0]));
 }

@@ -21,7 +21,6 @@
  *
  */
 
-#include <criterion/criterion.h>
 
 #include "msg_parse_lib.h"
 #include "apphook.h"
@@ -29,6 +28,7 @@
 #include "rcptid.h"
 #include "libtest/persist_lib.h"
 
+#include <criterion/criterion.h>
 #include <stdlib.h>
 
 typedef struct _LogMessageTestParams

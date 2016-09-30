@@ -1,3 +1,4 @@
+if ENABLE_CRITERION
 modules_linux_kmsg_format_tests_TESTS				=	\
 	modules/linux-kmsg-format/tests/test_linux_format_kmsg
 
@@ -11,3 +12,4 @@ modules_linux_kmsg_format_tests_test_linux_format_kmsg_LDADD	=	\
 modules_linux_kmsg_format_tests_test_linux_format_kmsg_LDFLAGS	=	\
 	$(PREOPEN_SYSLOGFORMAT)						\
 	-dlpreopen ${top_builddir}/modules/linux-kmsg-format/liblinux-kmsg-format.la
+endif

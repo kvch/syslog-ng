@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Balabit
+ * Copyright (c) 2016 Balabit
  * Copyright (c) 2012 Balázs Scheidler
  *
  * This library is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@
 
 #include "msg_parse_lib.h"
 #include "plugin.h"
+#include <criterion/criterion.h>
 
 void
 init_and_load_syslogformat_module()
@@ -45,13 +46,13 @@ deinit_syslogformat_module()
 void
 assert_log_message_has_tag(LogMessage *log_message, const gchar *tag_name)
 {
-  assert_true(log_msg_is_tag_by_name(log_message, tag_name), "Expected message to have '%s' tag", tag_name);
+  cr_assert(log_msg_is_tag_by_name(log_message, tag_name), "Expected message to have '%s' tag", tag_name);
 }
 
 void
 assert_log_message_doesnt_have_tag(LogMessage *log_message, const gchar *tag_name)
 {
-  assert_false(log_msg_is_tag_by_name(log_message, tag_name), "Expected message not to have '%s' tag", tag_name);
+  cr_assert_not(log_msg_is_tag_by_name(log_message, tag_name), "Expected message not to have '%s' tag", tag_name);
 }
 
 void
@@ -63,9 +64,9 @@ assert_log_message_value(LogMessage *self, NVHandle handle, const gchar *expecte
   const gchar *actual_value = log_msg_get_value(self, handle, &value_length);
 
   if (expected_value)
-    assert_string(actual_value, expected_value, "Value is not expected for key %s", key_name);
+    cr_assert_str_eq(actual_value, expected_value, "Value is not expected for key %s", key_name);
   else
-    assert_string(actual_value, "", "No value is expected for key %s but its value is %s", key_name, actual_value);
+    cr_assert_str_eq(actual_value, "", "No value is expected for key %s but its value is %s", key_name, actual_value);
 }
 
 void
@@ -81,7 +82,7 @@ assert_log_messages_saddr(LogMessage *log_message_a, LogMessage *log_message_b)
 
   g_sockaddr_format(log_message_a->saddr, address_a, sizeof(address_a), GSA_FULL);
   g_sockaddr_format(log_message_b->saddr, address_b, sizeof(address_b), GSA_FULL);
-  assert_string(address_a, address_b, "Socket address is not expected");
+  cr_assert_str_eq(address_a, address_b, "Socket address is not expected");
 }
 
 void
@@ -92,7 +93,7 @@ assert_structured_data_of_messages(LogMessage *log_message_a, LogMessage *log_me
 
   log_msg_format_sdata(log_message_a, structured_data_string_a, 0);
   log_msg_format_sdata(log_message_b, structured_data_string_b, 0);
-  assert_string(structured_data_string_a->str, structured_data_string_b->str, "Structure data string are not the same");
+  cr_assert_str_eq(structured_data_string_a->str, structured_data_string_b->str, "Structure data string are not the same");
 
   g_string_free(structured_data_string_a, TRUE);
   g_string_free(structured_data_string_b, TRUE);
@@ -106,26 +107,36 @@ assert_log_message_values_equal(LogMessage *log_message_a, LogMessage *log_messa
   const gchar *value_a = log_msg_get_value(log_message_a, handle, NULL);
   const gchar *value_b = log_msg_get_value(log_message_b, handle, NULL);
 
-  assert_string(value_a, value_b, "Value is not expected for key %s", key_name);
+  cr_assert_str_eq(value_a, value_b, "Value is not expected for key %s", key_name);
 }
 
 void
 assert_log_messages_equal(LogMessage *log_message_a, LogMessage *log_message_b)
 {
-  assert_gint(log_message_a->timestamps[LM_TS_STAMP].tv_sec, log_message_b->timestamps[LM_TS_STAMP].tv_sec,
-              "Timestamps are not the same");
-  assert_guint32(log_message_a->timestamps[LM_TS_STAMP].tv_usec, log_message_b->timestamps[LM_TS_STAMP].tv_usec,
-                 "Timestamps usec are not the same");
-  assert_guint32(log_message_a->timestamps[LM_TS_STAMP].zone_offset, log_message_b->timestamps[LM_TS_STAMP].zone_offset,
-                 "Timestamp offset are not the same");
+  NVHandle nvhandles[] =
+  {
+    LM_V_HOST,
+    LM_V_PROGRAM,
+    LM_V_MESSAGE,
+    LM_V_PID,
+    LM_V_MSGID,
+  };
+  gint i;
+  cr_assert_eq(log_message_a->timestamps[LM_TS_STAMP].tv_sec, log_message_b->timestamps[LM_TS_STAMP].tv_sec,
+              "Timestamps are not the same; Timestamp of a: %d, Timestamp of b: %d",
+              log_message_a->timestamps[LM_TS_STAMP].tv_sec, log_message_b->timestamps[LM_TS_STAMP].tv_sec);
+  cr_assert_eq(log_message_a->timestamps[LM_TS_STAMP].tv_usec, log_message_b->timestamps[LM_TS_STAMP].tv_usec,
+              "Timestamps usec are not the same; Timestamp of a: %d, Timestamp of b: %d",
+              log_message_a->timestamps[LM_TS_STAMP].tv_usec, log_message_b->timestamps[LM_TS_STAMP].tv_usec);
+  cr_assert_eq(log_message_a->timestamps[LM_TS_STAMP].zone_offset, log_message_b->timestamps[LM_TS_STAMP].zone_offset,
+              "Timestamp offsets are not the same; Timestamp of a: %d, Timestamp of b: %d",
+              log_message_a->timestamps[LM_TS_STAMP].zone_offset, log_message_b->timestamps[LM_TS_STAMP].zone_offset);
 
-  assert_guint16(log_message_a->pri, log_message_b->pri, "Priorities are not the same");
+  cr_assert_eq(log_message_a->pri, log_message_b->pri, "Priorities are not the same; A: %d, B: %d",
+               log_message_a->pri, log_message_b->pri);
 
-  assert_log_message_values_equal(log_message_a, log_message_b, LM_V_HOST);
-  assert_log_message_values_equal(log_message_a, log_message_b, LM_V_PROGRAM);
-  assert_log_message_values_equal(log_message_a, log_message_b, LM_V_MESSAGE);
-  assert_log_message_values_equal(log_message_a, log_message_b, LM_V_PID);
-  assert_log_message_values_equal(log_message_a, log_message_b, LM_V_MSGID);
+  for (i = 0; i < 5; i++)
+    assert_log_message_values_equal(log_message_a, log_message_b, nvhandles[i]);
 
   assert_structured_data_of_messages(log_message_a, log_message_b);
   assert_log_messages_saddr(log_message_a, log_message_b);

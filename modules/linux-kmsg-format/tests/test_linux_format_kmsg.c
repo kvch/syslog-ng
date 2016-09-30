@@ -22,12 +22,49 @@
  */
 
 #include "syslog-ng.h"
-
-#include "testutils.h"
 #include "msg_parse_lib.h"
 #include "apphook.h"
 #include "plugin.h"
 #include "plugin-types.h"
+#include <criterion/criterion.h>
+
+void
+init_and_load_kmsgformat_module()
+{
+  configuration = cfg_new(VERSION_VALUE);
+  plugin_load_module("linux-kmsg-format", configuration, NULL);
+  parse_options.format = "linux-kmsg";
+
+  msg_format_options_defaults(&parse_options);
+  msg_format_options_init(&parse_options, configuration);
+}
+
+void
+deinit_kmsgformat_module()
+{
+  if (configuration)
+    cfg_free(configuration);
+  configuration = NULL;
+  parse_options.format = NULL;
+  parse_options.format_handler = NULL;
+}
+
+__attribute__((constructor))
+static void global_test_init(void)
+{
+  app_startup();
+  putenv("TZ=UTC");
+  tzset();
+
+  init_and_load_kmsgformat_module();
+}
+
+__attribute__((destructor))
+static void global_test_deinit(void)
+{
+  deinit_kmsgformat_module();
+  app_shutdown();
+}
 
 static LogMessage *
 kmsg_parse_message(const gchar *raw_message_str)
@@ -45,20 +82,16 @@ static void
 assert_log_kmsg_value(LogMessage *message, const gchar *key,
                       const gchar *expected_value)
 {
-  const gchar *actual_value = log_msg_get_value(message,
-                              log_msg_get_value_handle(key),
-                              NULL);
-  assert_string(actual_value, expected_value, NULL);
+  const gchar *actual_value = log_msg_get_value(message, log_msg_get_value_handle(key), NULL);
+  cr_assert_str_eq(actual_value, expected_value, "Log kmsg value is not what is expected; expected=%s; actual=%",
+                   actual_value, expected_value);
 }
 
-void
-test_kmsg_single_line(void)
+Test(linux_format_kmsg, test_kmsg_single_line)
 {
-  gchar msg[] =
-    "5,2,1;Linux version 3.5-trunk-amd64 (Debian 3.5.2-1~experimental.1) (debian-kernel@lists.debian.org) (gcc version 4.6.3 (Debian 4.6.3-1) ) #1 SMP Mon Aug 20 04:17:46 UTC 2012\n";
+  gchar msg[] = "5,2,1;Linux version 3.5-trunk-amd64 (Debian 3.5.2-1~experimental.1) (debian-kernel@lists.debian.org) "
+                "(gcc version 4.6.3 (Debian 4.6.3-1) ) #1 SMP Mon Aug 20 04:17:46 UTC 2012\n";
   LogMessage *parsed_message;
-
-  testcase_begin("Testing single-line /dev/kmsg parsing; msg='%s'", msg);
 
   parsed_message = kmsg_parse_message(msg);
 
@@ -69,19 +102,14 @@ test_kmsg_single_line(void)
   assert_log_kmsg_value(parsed_message, ".linux.timestamp", "1");
 
   log_msg_unref(parsed_message);
-
-  testcase_end();
 }
 
-void
-test_kmsg_multi_line(void)
+Test(linux_format_kmsg, test_kmsg_multi_line)
 {
   gchar msg[] = "6,202,98513;pci_root PNP0A08:00: host bridge window [io  0x0000-0x0cf7]\n" \
                 " SUBSYSTEM=acpi\n" \
                 " DEVICE=+acpi:PNP0A08:00\n";
   LogMessage *parsed_message;
-
-  testcase_begin("Testing multi-line /dev/kmsg parsing; msg='%s'", msg);
 
   parsed_message = kmsg_parse_message(msg);
 
@@ -93,17 +121,12 @@ test_kmsg_multi_line(void)
   assert_log_kmsg_value(parsed_message, ".linux.DEVICE.name", "PNP0A08:00");
 
   log_msg_unref(parsed_message);
-
-  testcase_end();
 }
 
-void
-test_kmsg_with_extra_fields(void)
+Test(linux_format_kmsg, test_kmsg_with_extra_fields)
 {
   gchar msg[] = "5,2,0,some extra field,3,4,5;And this is the real message\n";
   LogMessage *parsed_message;
-
-  testcase_begin("Testing /dev/kmsg parsing, with extra fields; msg='%s'", msg);
 
   parsed_message = kmsg_parse_message(msg);
   assert_guint16(parsed_message->pri, 5, "Unexpected message priority");
@@ -111,12 +134,9 @@ test_kmsg_with_extra_fields(void)
   assert_log_message_value(parsed_message, LM_V_MESSAGE, "And this is the real message");
 
   log_msg_unref(parsed_message);
-
-  testcase_end();
 }
 
-void
-test_kmsg_device_parsing(void)
+Test(linux_format_kmsg, test_kmsg_device_parsing)
 {
   gchar msg_subsys[] = "6,202,98513;pci_root PNP0A08:00: host bridge window [io  0x0000-0x0cf7]\n" \
                        " SUBSYSTEM=acpi\n" \
@@ -130,8 +150,6 @@ test_kmsg_device_parsing(void)
   gchar msg_unknown[] = "6,202,98513;Fake message\n" \
                         " DEVICE=w12345\n";
   LogMessage *parsed_message;
-
-  testcase_begin("Testing /dev/kmsg DEVICE= parsing");
 
   parsed_message = kmsg_parse_message(msg_subsys);
   assert_log_kmsg_value(parsed_message, ".linux.DEVICE.type", "acpi");
@@ -159,45 +177,4 @@ test_kmsg_device_parsing(void)
   assert_log_kmsg_value(parsed_message, ".linux.DEVICE.type", "<unknown>");
   assert_log_kmsg_value(parsed_message, ".linux.DEVICE.name", "w12345");
   log_msg_unref(parsed_message);
-
-  testcase_end();
-}
-
-void
-init_and_load_kmsgformat_module()
-{
-  configuration = cfg_new(VERSION_VALUE);
-  plugin_load_module("linux-kmsg-format", configuration, NULL);
-  parse_options.format = "linux-kmsg";
-
-  msg_format_options_defaults(&parse_options);
-  msg_format_options_init(&parse_options, configuration);
-}
-
-void
-deinit_kmsgformat_module()
-{
-  if (configuration)
-    cfg_free(configuration);
-  configuration = NULL;
-  parse_options.format = NULL;
-  parse_options.format_handler = NULL;
-}
-
-int
-main(void)
-{
-  app_startup();
-  putenv("TZ=UTC");
-  tzset();
-
-  init_and_load_kmsgformat_module();
-
-  test_kmsg_single_line();
-  test_kmsg_multi_line();
-  test_kmsg_with_extra_fields();
-  test_kmsg_device_parsing();
-
-  deinit_kmsgformat_module();
-  app_shutdown();
 }

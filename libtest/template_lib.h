@@ -29,9 +29,22 @@
 #include "template/templates.h"
 #include <stdarg.h>
 
+typedef struct _TemplateFormatTestCase
+{
+  const gchar *template;
+  const gchar *expected;
+} TemplateFormatTestCase;
+
+typedef struct _NVPairMock
+{
+  const gchar *name;
+  const gchar *value;
+} NVPairMock;
+
 void assert_template_format(const gchar *template, const gchar *expected);
-void assert_template_format_msg(const gchar *template,
-                                     const gchar *expected, LogMessage *msg);
+void assert_template_format_msg(const gchar *template, const gchar *expected, LogMessage *msg);
+void assert_templates_format(TemplateFormatTestCase *c, gint nr_of_cases);
+
 void assert_template_format_with_escaping(const gchar *template, gboolean escaping, const gchar *expected);
 void assert_template_format_with_escaping_msg(const gchar *template, gboolean escaping,
                                      const gchar *expected, LogMessage *msg);
