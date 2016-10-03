@@ -50,7 +50,7 @@ _assert_filename_without_extension(const gchar *filename)
 
 Test(pathutils, test_get_filename_extension)
 {
-  PathUtilsTestCase test_cases_with_extension[] =
+  PathUtilsTestCase test_cases[] =
   {
     {"test.csv", "csv"},
     {".test.csv", "csv"},
@@ -58,7 +58,17 @@ Test(pathutils, test_get_filename_extension)
     {"test.csv~", "csv~"},
     {"1.x", "x"},
   };
-  gchar *test_cases_without_extension[] =
+  gint i, nr_of_cases;
+
+  nr_of_cases = sizeof(test_cases) / sizeof(test_cases[0]);
+  for (i = 0; i < nr_of_cases; i++)
+    _assert_filename_with_extension(test_cases[i]);
+
+}
+
+Test(pathutils, test_get_filename_extension_without_extension)
+{
+  gchar *test_cases[] =
   {
     "filename",
     "",
@@ -68,13 +78,9 @@ Test(pathutils, test_get_filename_extension)
     "1.",
     NULL,
   };
-  gint i, nr_of_extension_cases, nr_of_extensionless_cases;
+  gint i, nr_of_cases;
 
-  nr_of_extension_cases = sizeof(test_cases_with_extension) / sizeof(test_cases_with_extension[0]);
-  for (i = 0; i < nr_of_extension_cases; i++)
-    _assert_filename_with_extension(test_cases_with_extension[i]);
-
-  nr_of_extensionless_cases = sizeof(test_cases_without_extension) / sizeof(test_cases_without_extension[0]);
-  for (i = 0; i < nr_of_extensionless_cases; i++)
-    _assert_filename_without_extension(test_cases_without_extension[i]);
+  nr_of_cases = sizeof(test_cases) / sizeof(test_cases[0]);
+  for (i = 0; i < nr_of_cases; i++)
+    _assert_filename_without_extension(test_cases[i]);
 }
