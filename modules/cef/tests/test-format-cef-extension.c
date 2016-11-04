@@ -24,18 +24,23 @@
 #include "plugin.h"
 #include "cfg.h"
 
+#include <criterion/criterion.h>
 #include <stdarg.h>
 
-#define _EXPECT_CEF_RESULT(...) _expect_cef_result_va(__VA_ARGS__, NULL)
-#define _EXPECT_DROP_MESSAGE(...) _expect_cef_result_va("", __VA_ARGS__, NULL)
-#define _EXPECT_SKIP_BAD_PROPERTY(...) _expect_skip_bad_property_va(__VA_ARGS__, NULL)
-#define _EXPECT_CEF_RESULT_FORMAT(X, ...) _expect_cef_result_format_va(X, __VA_ARGS__, NULL);
+
+typedef struct _CEFTestCaseWithFormat
+{
+  const gchar *format;
+  NVPairStub *nv_pairs;
+  const gint nr_of_nv_pairs;
+  const gchar *expected;
+} CEFTestCaseWithFormat;
 
 typedef struct _CEFTestCase
 {
-  const gchar *format;
-  const NVPairMock *expected_nv_pairs;
-  const gint nr_of_expected_nv_pairs;
+  NVPairStub *nv_pairs;
+  const gint nr_of_nv_pairs;
+  const gchar *expected;
 } CEFTestCase;
 
 __attribute__((constructor))
@@ -56,48 +61,45 @@ static void global_test_deinit(void)
 }
 
 static void
-_expect_cef_result_properties_list(const gchar *expected, va_list ap)
+_expect_cef_result_properties_list(const gchar *expected, NVPairStub *nv_pairs, gint nr_of_nvpairs)
 {
-  LogMessage *msg = message_from_list(ap);
+  LogMessage *msg = message_from_list(nv_pairs, nr_of_nvpairs);
 
   assert_template_format_msg("$(format-cef-extension --subkeys .cef.)", expected, msg);
   log_msg_unref(msg);
 }
 
 static void
-_expect_cef_result_va(const gchar *expected, ...)
+_expect_cef_result(const gchar *expected, NVPairStub *nv_pairs, gint nr_of_nvpairs)
 {
-  va_list ap;
   configuration->template_options.on_error = ON_ERROR_DROP_MESSAGE | ON_ERROR_SILENT;
-
-  va_start(ap, expected);
-  _expect_cef_result_properties_list(expected, ap);
-  va_end(ap);
+  _expect_cef_result_properties_list(expected, nv_pairs, nr_of_nvpairs);
 }
 
 static void
-_expect_skip_bad_property_va(const gchar *expected, ...)
+_expect_skip_bad_property(const gchar *expected, NVPairStub *nv_pairs, gint nr_of_nvpairs)
 {
-  va_list ap;
   configuration->template_options.on_error = ON_ERROR_DROP_PROPERTY | ON_ERROR_SILENT;
-
-  va_start(ap, expected);
-  _expect_cef_result_properties_list(expected, ap);
-  va_end(ap);
+  _expect_cef_result_properties_list(expected, nv_pairs, nr_of_nvpairs);
 }
 
 static void
-_expect_cef_result_format_va(CEFTestCase c)
+_expect_drop_message(NVPairStub *nv_pairs, gint nr_of_nvpairs)
 {
-  LogMessage *msg = message_from_list(c.nv_pairs, c.nr_of_expected_nv_pairs);
+  _expect_cef_result("", nv_pairs, nr_of_nvpairs);
+}
+
+static void
+_expect_cef_result_format_va(CEFTestCaseWithFormat c)
+{
+  LogMessage *msg = message_from_list(c.nv_pairs, c.nr_of_nv_pairs);
 
   configuration->template_options.on_error = ON_ERROR_DROP_MESSAGE | ON_ERROR_SILENT;
-  assert_template_format_msg(format, expected, msg);
+  assert_template_format_msg(c.format, c.expected, msg);
   log_msg_unref(msg);
 }
 
-static void
-_test_null_in_value()
+Test(cef_format_extension, test_null_in_value)
 {
   LogMessage *msg = create_empty_message();
 
@@ -107,116 +109,143 @@ _test_null_in_value()
   log_msg_unref(msg);
 }
 
-static void
-_test_filter(void)
+Test(cef_format_extension, test_filter)
 {
-  _EXPECT_CEF_RESULT("k=v", ".cef.k", "v", "x", "w");
+  gchar *expected = "k=v";
+  NVPairStub nv_pairs[] =
+  {
+      {".cef.k", "v"},
+      {"x", "w"},
+  };
+  _expect_cef_result(expected, nv_pairs, 2);
 }
 
-static void
-_test_multiple_properties_with_space(void)
+Test(cef_format_extension, test_multiple_properties_with_space)
 {
-  _EXPECT_CEF_RESULT("act=c:/program files dst=10.0.0.1",
-                     ".cef.act", "c:/program files",
-                     ".cef.dst", "10.0.0.1");
+  const gchar *expected = "act=c:/program files dst=10.0.0.1";
+  NVPairStub nv_pairs[] =
+  {
+    {".cef.act", "c:/program files"},
+    {".cef.dst", "10.0.0.1"},
+  };
+  _expect_cef_result(expected, nv_pairs, 2);
 }
 
 Test(cef_format_extension, test_multiple_properties)
 {
-  NVPairMock nv_pairs[] = 
+  NVPairStub nv_pairs[] = 
   {
     {"cef.k", "v"},
     {"cef.x", "y"},
   };
-  CEFTestCase test_case = { "k=v x=y", nv_pairs, 2 };
+  CEFTestCaseWithFormat test_case = {"", nv_pairs, 2, "k=v x=y" };
   _expect_cef_result_format_va(test_case);
 }
 
-static void
-_test_drop_property(void)
+Test(cef_format_extension, test_drop_property)
 {
-  _EXPECT_SKIP_BAD_PROPERTY("kkk=v",
-                            ".cef.a|b", "c",
-                            ".cef.kkk", "v",
-                            ".cef.x=y", "w");
+  NVPairStub nv_pairs[] = 
+  {
+    {".cef.a|b", "c"},
+    {".cef.kkk", "v"},
+    {".cef.x=y", "w"},
+  };
+  _expect_skip_bad_property("kkk=v", nv_pairs, 3);
 }
 
-static void
-_test_drop_message(void)
+Test(cef_format_extension, test_drop_message)
 {
-  _EXPECT_DROP_MESSAGE(".cef.a|b", "c",
-                       ".cef.kkk", "v",
-                       ".cef.x=y", "w");
+  NVPairStub nv_pairs[] = 
+  {
+    {".cef.a|b", "c"},
+    {".cef.kkk", "v"},
+    {".cef.x=y", "w"},
+  };
+  _expect_drop_message(nv_pairs, 3);
 }
 
-static void
-_test_empty(void)
+Test(cef_format_extension, test_empty)
 {
-  _EXPECT_CEF_RESULT("");
+  _expect_cef_result("", NULL, 0);
 }
 
-static void
-_test_inline(void)
+/*
+Test(cef_format_extension, test_inline)
 {
-  _EXPECT_CEF_RESULT_FORMAT("$(format-cef-extension --subkeys .cef. .cef.k=v)", "k=v");
+  _expect_cef_result_format("$(format-cef-extension --subkeys .cef. .cef.k=v)", "k=v");
+}
+*/
+
+Test(cef_format_extension, test_space)
+{
+  const gchar *expected = "act=blocked a ping";
+  NVPairStub nv_pairs[] =
+  {
+    {".cef.act", "blocked a ping"},
+  };
+  _expect_cef_result(expected, nv_pairs, 1);
 }
 
-static void
-_test_space(void)
+/*
+Test(cef_format_extension, test_charset)
 {
-  _EXPECT_CEF_RESULT("act=blocked a ping", ".cef.act", "blocked a ping");
+  _expect_drop_message(".cef.árvíztűrőtükörfúrógép", "v");
+  _expect_cef_result("k=árvíztűrőtükörfúrógép", ".cef.k", "árvíztűrőtükörfúrógép");
+
+  _expect_cef_result("k=\\xff", ".cef.k", "\xff");
+  _expect_cef_result("k=\\xc3", ".cef.k", "\xc3");
+  _expect_drop_message(".cef.k\xff", "v");
+  _expect_drop_message(".cef.k\xc3", "v");
+}
+*/
+Test(cef_format_extension, test_escaping)
+{
+  NVPairStub stub[] = 
+  {
+    { ".cef.act", "\\"},
+  };
+  CEFTestCaseWithFormat test_cases[] =
+  {
+    {"act=\\\\", stub[0], 1},
+    {"act=\\\\\\\\", (NVPairStub *) {".cef.act", "\\\\"}, 1},
+    {"act=\\=", (NVPairStub *) {".cef.act", "="}, 1},
+    {"act=|", (NVPairStub *) {".cef.act", "|"}, 1},
+    {"act=\\u0009", (NVPairStub *) {".cef.act", "\t"}, 1},
+    {"act=\\n", (NVPairStub *) {".cef.act", "\n"}, 1},
+    {"act=\\r", (NVPairStub *) {".cef.act", "\r"}, 1},
+    {"act=v\\n", (NVPairStub *) {".cef.act", "v\n"}, 1},
+    {"act=v\\r", (NVPairStub *) {".cef.act", "v\r"}, 1},
+    {"act=u\\nv", (NVPairStub *) {".cef.act", "u\nv"}, 1},
+    {"act=\\r\\n", (NVPairStub *) {".cef.act", "\r\n"}, 1},
+    {"act=\\n\\r", (NVPairStub *) {".cef.act", "\n\r"}, 1},
+    {"act=this is a long value \\= something", (NVPairStub *) {".cef.act", "this is a long value = something"}, 1},
+  };
+  gint i;
+  for (i = 0; i < 14; i++)
+    _expect_cef_result(test_cases[i].expected, test_cases[i].nv_pairs, test_cases[i].nr_of_nvpairs);
+
+  /*
+  _expect_drop_message(".cef.k=w", "v");
+  _expect_drop_message(".cef.k|w", "v");
+  _expect_drop_message(".cef.k\\w", "v");
+  _expect_drop_message(".cef.k\nw", "v");
+  _expect_drop_message(".cef.k w", "v");
+  */
 }
 
-static void
-_test_charset(void)
-{
-  _EXPECT_DROP_MESSAGE(".cef.árvíztűrőtükörfúrógép", "v");
-  _EXPECT_CEF_RESULT("k=árvíztűrőtükörfúrógép", ".cef.k", "árvíztűrőtükörfúrógép");
-
-  _EXPECT_CEF_RESULT("k=\\xff", ".cef.k", "\xff");
-  _EXPECT_CEF_RESULT("k=\\xc3", ".cef.k", "\xc3");
-  _EXPECT_DROP_MESSAGE(".cef.k\xff", "v");
-  _EXPECT_DROP_MESSAGE(".cef.k\xc3", "v");
-}
-
-static void
-_test_escaping(void)
-{
-  _EXPECT_CEF_RESULT("act=\\\\", ".cef.act", "\\");
-  _EXPECT_CEF_RESULT("act=\\\\\\\\", ".cef.act", "\\\\");
-  _EXPECT_CEF_RESULT("act=\\=", ".cef.act", "=");
-  _EXPECT_CEF_RESULT("act=|", ".cef.act", "|");
-  _EXPECT_CEF_RESULT("act=\\u0009", ".cef.act", "\t");
-  _EXPECT_CEF_RESULT("act=\\n", ".cef.act", "\n");
-  _EXPECT_CEF_RESULT("act=\\r", ".cef.act", "\r");
-  _EXPECT_CEF_RESULT("act=v\\n", ".cef.act", "v\n");
-  _EXPECT_CEF_RESULT("act=v\\r", ".cef.act", "v\r");
-  _EXPECT_CEF_RESULT("act=u\\nv", ".cef.act", "u\nv");
-  _EXPECT_CEF_RESULT("act=\\r\\n", ".cef.act", "\r\n");
-  _EXPECT_CEF_RESULT("act=\\n\\r", ".cef.act", "\n\r");
-  _EXPECT_CEF_RESULT("act=this is a long value \\= something",
-                     ".cef.act", "this is a long value = something");
-
-  _EXPECT_DROP_MESSAGE(".cef.k=w", "v");
-  _EXPECT_DROP_MESSAGE(".cef.k|w", "v");
-  _EXPECT_DROP_MESSAGE(".cef.k\\w", "v");
-  _EXPECT_DROP_MESSAGE(".cef.k\nw", "v");
-  _EXPECT_DROP_MESSAGE(".cef.k w", "v");
-}
-
-static void
-_test_prefix(void)
+/*
+Test(cef_format_extension, test_prefix)
 {
   configuration->template_options.on_error = ON_ERROR_DROP_MESSAGE | ON_ERROR_SILENT;
 
-  _EXPECT_CEF_RESULT_FORMAT("$(format-cef-extension --subkeys ..)", "k=v", "..k", "v");
-  _EXPECT_CEF_RESULT_FORMAT("$(format-cef-extension --subkeys ,)", "k=v", ",k", "v");
-  _EXPECT_CEF_RESULT_FORMAT("$(format-cef-extension --subkeys .cef.)", "", "k", "v");
-  _EXPECT_CEF_RESULT_FORMAT("$(format-cef-extension --subkeys ' ')", "k=v", " k", "v");
-  _EXPECT_CEF_RESULT_FORMAT("$(format-cef-extension --subkeys \" \")", "k=v", " k", "v");
+  _expect_cef_result_format("$(format-cef-extension --subkeys ..)", "k=v", "..k", "v");
+  _expect_cef_result_format("$(format-cef-extension --subkeys ,)", "k=v", ",k", "v");
+  _expect_cef_result_format("$(format-cef-extension --subkeys .cef.)", "", "k", "v");
+  _expect_cef_result_format("$(format-cef-extension --subkeys ' ')", "k=v", " k", "v");
+  _expect_cef_result_format("$(format-cef-extension --subkeys \" \")", "k=v", " k", "v");
 
-  _EXPECT_CEF_RESULT_FORMAT("$(format-cef-extension x=y)", "x=y", "k", "v");
-  _EXPECT_CEF_RESULT_FORMAT("$(format-cef-extension)", "", "k", "v");
+  _expect_cef_result_format("$(format-cef-extension x=y)", "x=y", "k", "v");
+  _expect_cef_result_format("$(format-cef-extension)", "", "k", "v");
 
   assert_template_failure("$(format-cef-extension --subkeys)",
                           "Missing argument for --subkeys");
@@ -226,15 +255,13 @@ _test_prefix(void)
                           "Error parsing value-pairs: --subkeys requires a non-empty argument");
 }
 
-static void
-_test_macro_parity(void)
+Test(cef_format_extension, test_macro_parity)
 {
-  _EXPECT_CEF_RESULT("", "k");
-  _EXPECT_CEF_RESULT_FORMAT("", "");
-  _EXPECT_CEF_RESULT_FORMAT("", "", "k");
-  _EXPECT_DROP_MESSAGE("");
-  _EXPECT_DROP_MESSAGE("", "k");
-  _EXPECT_SKIP_BAD_PROPERTY("");
-  _EXPECT_SKIP_BAD_PROPERTY("", "k");
+  _expect_cef_result("", "k");
+  _expect_cef_result_format("", "");
+  _expect_cef_result_format("", "", "k");
+  _expect_drop_message("");
+  _expect_drop_message("", "k");
+  _expect_skip_bad_property("", NULL, 0);
 }
-
+*/

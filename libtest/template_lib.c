@@ -43,7 +43,7 @@ deinit_template_tests(void)
 }
 
 LogMessage *
-message_from_list(NVPairMock *nv_pairs, gint nr_of_nvpairs)
+message_from_list(NVPairStub* nv_pairs, gint nr_of_nvpairs)
 {
   LogMessage *msg = create_empty_message();
   gint i;
@@ -52,7 +52,7 @@ message_from_list(NVPairMock *nv_pairs, gint nr_of_nvpairs)
     return NULL;
 
   for (i = 0; i < nr_of_nvpairs; i++)
-    log_msg_set_value_by_name(msg, nv_pairs[i]->name, nv_pairs[i]->value, -1);
+    log_msg_set_value_by_name(msg, nv_pairs[i].name, nv_pairs[i].value, -1);
 
   return msg;
 }

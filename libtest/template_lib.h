@@ -35,11 +35,11 @@ typedef struct _TemplateFormatTestCase
   const gchar *expected;
 } TemplateFormatTestCase;
 
-typedef struct _NVPairMock
+typedef struct _NVPairStub
 {
   const gchar *name;
   const gchar *value;
-} NVPairMock;
+} NVPairStub;
 
 void assert_template_format(const gchar *template, const gchar *expected);
 void assert_template_format_msg(const gchar *template, const gchar *expected, LogMessage *msg);
@@ -54,7 +54,7 @@ void assert_template_failure(const gchar *template, const gchar *expected_failur
 
 LogMessage *create_empty_message(void);
 LogMessage *create_sample_message(void);
-LogMessage *message_from_list(va_list ap);
+LogMessage *message_from_list(NVPairStub *nv_pairs, gint nr_of_nvpairs);
 LogTemplate *compile_template(const gchar *template, gboolean escaping);
 void init_template_tests(void);
 void deinit_template_tests(void);
