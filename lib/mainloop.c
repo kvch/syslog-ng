@@ -440,6 +440,24 @@ main_loop_init(void)
   setup_signals();
 }
 
+static int
+_setup_cli_mode(GlobalConfig *current_configuration)
+{
+  if (!cli_setup_params(cli))
+    {
+      return 1;
+    }
+  if (!cli_init_cfg(cli, current_configuration))
+    {
+      return 1;
+    }
+  if (cli_debug_cfg_filename && !cli_write_generated_config_to_file(cli, cli_debug_cfg_filename))
+    {
+      return 3;
+    }
+  return 0;
+}
+
 /*
  * Returns: exit code to be returned to the calling process, 0 on success.
  */
@@ -449,23 +467,15 @@ main_loop_read_and_init_config(void)
   current_configuration = cfg_new(0);
   if (cli->is_command_line_drivers)
     {
-      if (!cli_setup_params(cli))
-          return 1;
-      if (!cli_init_cfg(cli, current_configuration))
+      int result = _setup_cli_mode(current_configuration);
+      if (result != 0)
         {
-          return 1;
-        }
-      if (cli_debug_cfg_filename && !cli_write_generated_config_to_file(cli, cli_debug_cfg_filename))
-        {
-          return 3;
+          return result;
         }
     }
-  else
+  else if (!cfg_open_config(current_configuration, resolvedConfigurablePaths.cfgfilename))
     {
-      if (!cfg_open_config(current_configuration, resolvedConfigurablePaths.cfgfilename))
-        {
-          return 1;
-        }
+      return 1;
     }
 
   /* same retval for the sake of backward-compatibility */
