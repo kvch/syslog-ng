@@ -536,7 +536,7 @@ static GOptionEntry main_loop_options[] =
   { "control",           'c',         0, G_OPTION_ARG_STRING, &resolvedConfigurablePaths.ctlfilename, "Set syslog-ng control socket, default=" PATH_CONTROL_SOCKET, "<ctlpath>" },
   { "interactive",       'i',         0, G_OPTION_ARG_NONE, &interactive_mode, "Enable interactive mode" },
   { "cli",               'l',         0, G_OPTION_ARG_NONE, &command_line_mode, "Run as a command line tool" },
-  { "outputfile",        'o',         0, G_OPTION_ARG_FILENAME, &cli_debug_cfg_filename, "Write genenrated config to file", NULL},
+  { "cli-config-dump",   'o',         0, G_OPTION_ARG_FILENAME, &cli_debug_cfg_filename, "Write genenrated config to file", NULL},
   { G_OPTION_REMAINING,  0,           0, G_OPTION_ARG_STRING_ARRAY, &cli_var, NULL, NULL },
   { NULL },
 };
