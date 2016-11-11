@@ -1020,9 +1020,9 @@ cfg_tree_get_object_by_name(CfgTree *self, const gchar *name)
   gint possible_types[] = { ENC_FILTER, ENC_PARSER, ENC_REWRITE };
   for (i = 0; i < 3; i++)
     {
-        node = cfg_tree_get_object(self, possible_types[i], name);
-        if (node != NULL)
-            return node;
+      node = cfg_tree_get_object(self, possible_types[i], name);
+      if (node != NULL)
+        return node;
     }
   return node;
 }

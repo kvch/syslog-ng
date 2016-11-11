@@ -239,9 +239,9 @@ _inject_cli_logpath(gchar *driver_references, GlobalConfig *global_config)
   ssize_t n;
   size_t line_buf_len;
   gchar *line_buf = NULL;
-  while ((n = getline(&line_buf, &line_buf_len, fp)) != -1) 
+  while ((n = getline(&line_buf, &line_buf_len, fp)) != -1)
     {
-      
+
     }
   return TRUE;
 }
@@ -250,14 +250,18 @@ gboolean
 cli_setup_partial_config(Cli *self, GlobalConfig *global_config)
 {
   gint i;
-  gchar *log_path_buffer[1000] = "";
+  gchar log_path_buffer[1000];
+  log_path_buffer[0] = '\0';
   for (i = 0; self->drivers[i]; i++)
     {
       gchar *driver_name = self->drivers[i];
-      gchar *driver_type = cfg_tree_get_type_of_driver(global_config->tree, driver_name);
-      gchar *driver_reference[100] = "";
+      const gchar *driver_type = cfg_tree_get_type_of_driver(&global_config->tree, driver_name);
+      gchar driver_reference[100];
+      driver_reference[0] = '\0';
+
       if (sprintf(driver_reference, LOG_PATH_TEMPLATE, driver_type, driver_name) < 1)
           return FALSE;
+
       strcat(driver_reference, log_path_buffer);
     }
   if (strcmp(log_path_buffer, "") == 0)
