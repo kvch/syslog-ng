@@ -442,7 +442,7 @@ cfg_open_config(GlobalConfig *self, const gchar *fname)
                 evt_tag_errno(EVT_TAG_OSERROR, errno));
       return FALSE;
     }
-   return TRUE; 
+  return TRUE;
 }
 
 gboolean
