@@ -442,13 +442,13 @@ main_loop_init(void)
 }
 
 static int
-_setup_cli_mode(GlobalConfig *current_configuration)
+_setup_cli_mode(GlobalConfig *global_config)
 {
   if (!cli_setup_params(cli))
     {
       return 1;
     }
-  if (!cli_init_cfg(cli, current_configuration))
+  if (!cli_initialize_configuration(cli, global_config))
     {
       return 1;
     }
@@ -459,13 +459,9 @@ _setup_cli_mode(GlobalConfig *current_configuration)
   return 0;
 }
 
-/*
- * Returns: exit code to be returned to the calling process, 0 on success.
- */
-int
-main_loop_read_and_init_config(void)
+static int
+_open_configuration_for_reading()
 {
-  current_configuration = cfg_new(0);
   if (cli->is_command_line_drivers)
     {
       int result = _setup_cli_mode(current_configuration);
@@ -478,6 +474,19 @@ main_loop_read_and_init_config(void)
     {
       return 1;
     }
+  return 0;
+}
+
+/*
+ * Returns: exit code to be returned to the calling process, 0 on success.
+ */
+int
+main_loop_read_and_init_config(void)
+{
+  current_configuration = cfg_new(0);
+  int result = _open_configuration_for_reading();
+  if (result != 0)
+    return result;
 
   /* same retval for the sake of backward-compatibility */
   if (!cfg_read_config(current_configuration, syntax_only, preprocess_into))

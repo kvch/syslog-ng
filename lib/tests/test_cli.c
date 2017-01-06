@@ -57,42 +57,36 @@ Test(cli, test_cli_setup_params)
   };
   Cli *cli = cli_new(parser_raw_param, command_line_mode);
   cr_assert_not(cli_setup_params(cli), "Invalid raw params: missing driver separator");
-  cr_assert(cli->params == NULL, "No parsed drivers");
 
   parser_raw_param = (char *[])
   { "csvparser();", NULL
   };
   cli = cli_new(parser_raw_param, command_line_mode);
   cr_assert_not(cli_setup_params(cli), "Invalid raw params: missing driver type");
-  cr_assert(cli->params == NULL, "No parsed drivers");
 
   parser_raw_param = (char *[])
   { "parser;", NULL
   };
   cli = cli_new(parser_raw_param, command_line_mode);
   cr_assert_not(cli_setup_params(cli), "Invalid raw params: missing driver config");
-  cr_assert(cli->params == NULL, "No parsed drivers");
 
   parser_raw_param = (char *[])
   { "parser json-parser();", "parser json-parser()", NULL
   };
   cli = cli_new(parser_raw_param, command_line_mode);
   cr_assert_not(cli_setup_params(cli), "Invalid raw params: missing driver separator in 2nd item");
-  cr_assert(cli->params == NULL, "No parsed drivers");
 
   parser_raw_param = (char *[])
   { "parser csvparser();", "parser;", NULL
   };
   cli = cli_new(parser_raw_param, command_line_mode);
   cr_assert_not(cli_setup_params(cli), "Invalid raw params: missing driver config in 2nd item");
-  cr_assert(cli->params == NULL, "No parsed drivers");
 
   parser_raw_param = (char *[])
   { "parser csvparser();", "csvparser();", NULL
   };
   cli = cli_new(parser_raw_param, command_line_mode);
   cr_assert_not(cli_setup_params(cli), "Invalid raw params: missing driver config in 2nd item");
-  cr_assert(cli->params == NULL, "No parsed drivers");
 
   parser_raw_param = (char *[])
   { "parser csvparser();", NULL
@@ -108,13 +102,15 @@ Test(cli, test_cli_setup_params)
   cr_assert(cli_setup_params(cli), "Valid raw params: csvparser");
   cr_assert(g_list_length(cli->params) == 1, "1 parsed driver: csvparser");
 
-  parser_raw_param = (char *[]) { "parser csvparser(columns(column)); parser json-parser();", NULL };
+  parser_raw_param = (char *[])
+  { "parser csvparser(columns(column)); parser json-parser();", NULL
+  };
   cli = cli_new(parser_raw_param, command_line_mode);
   cr_assert(cli_setup_params(cli), "Valid raw params: csvparser, json-parser");
   cr_assert(g_list_length(cli->params) == 2, "2 parsed driver: csvparser, json-parser");
 }
 
-Test(cli, test_cli_init_cfg_with_one_param)
+Test(cli, test_cli_initialize_config_with_one_param)
 {
   GlobalConfig *global_config = cfg_new(0);
   GList *params = NULL;
@@ -129,16 +125,16 @@ Test(cli, test_cli_init_cfg_with_one_param)
                                  "@include scl.conf\n"
                                  "source s_stdin { stdin(); };\n"
                                  "destination d_stdout { stdout(); };\n"
-                                 "parser my-name { csvparser();};\n"
+                                 " parser my-name { csvparser();};\n"
                                  "log {source(s_stdin); parser(my-name); destination(d_stdout);};";
   g_snprintf(expected_cfg, sizeof(expected_cfg), expected_cfg_template, SYSLOG_NG_VERSION);
 
-  cr_assert(cli_init_cfg(cli, global_config), "Succesfully initialized config");
+  cr_assert(cli_initialize_configuration(cli, global_config), "Succesfully initialized config");
   cr_assert_eq(strcmp(cli->generated_config, expected_cfg), 0, "Generated: \n%s\nExpected:\n%s", cli->generated_config,
                expected_cfg);
 }
 
-Test(cli, test_cli_init_cfg_with_two_params_param)
+Test(cli, test_cli_initialize_config_with_two_params_param)
 {
   GlobalConfig *global_config = cfg_new(0);
   GList *params = NULL;
@@ -151,17 +147,17 @@ Test(cli, test_cli_init_cfg_with_two_params_param)
   Cli *cli = cli_new(NULL, TRUE);
   cli->params = params;
 
-  gchar expected_cfg[200];
+  gchar expected_cfg[300];
   gchar *expected_cfg_template = "@version: %s\n"
                                  "@include scl.conf\n"
                                  "source s_stdin { stdin(); };\n"
                                  "destination d_stdout { stdout(); };\n"
-                                 "parser my-csvparser-name { csvparser();};\n"
-                                 "parser my-jsonparser-name { jsonparser();};\n"
+                                 " parser my-csvparser-name { csvparser();};\n"
+                                 " parser my-jsonparser-name { jsonparser();};\n"
                                  "log {source(s_stdin); parser(my-csvparser-name); parser(my-jsonparser-name); destination(d_stdout);};";
   g_snprintf(expected_cfg, sizeof(expected_cfg), expected_cfg_template, SYSLOG_NG_VERSION);
 
-  cr_assert(cli_init_cfg(cli, global_config), "Succesfully initialized config");
+  cr_assert(cli_initialize_configuration(cli, global_config), "Succesfully initialized config");
   cr_assert_eq(strcmp(cli->generated_config, expected_cfg), 0, "Generated: \n%s\nExpected:\n%s", cli->generated_config,
                expected_cfg);
 }

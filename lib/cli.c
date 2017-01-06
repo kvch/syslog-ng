@@ -28,7 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-gchar LOG_PATH_TEMPLATE[] = " %s(%s);";
+gchar LOG_PATH_TEMPLATE[] = "%s(%s);";
 gchar DRIVER_TEMPLATE[] = "%s %s { %s};\n";
 gchar DRIVER_NAME_TEMPLATE[] = "%s%s";
 gchar CFG_FILE_TEMPLATE[] = "@version: %s\n"
@@ -39,18 +39,14 @@ gchar CFG_FILE_TEMPLATE[] = "@version: %s\n"
                             "log {source(s_stdin);%s destination(d_stdout);};";
 
 
-gchar *
+static gchar *
 _generate_name(gchar *driver_type)
 {
-  gchar generated_name[100] = "";
   gchar driver_uuid[37];
 
   uuid_gen_random(driver_uuid, sizeof(driver_uuid));
-  g_snprintf(generated_name, 100, DRIVER_NAME_TEMPLATE, driver_type, driver_uuid);
 
-  msg_debug("Generated name", evt_tag_str("driver_type", driver_type), evt_tag_str("name", generated_name));
-
-  return g_strndup(generated_name, strlen(generated_name));
+  return g_strdup_printf(DRIVER_NAME_TEMPLATE, driver_type, driver_uuid);
 }
 
 CliParam *
@@ -63,126 +59,164 @@ cli_param_new(gchar *type, gchar *cfg)
   return self;
 }
 
-gboolean
-_get_cfg_string(CliParam *cfg, gchar *cfg_lines, gchar *cfg_path)
+static gchar *
+_get_config_of_driver(CliParam *driver)
 {
-  gint characters_inserted;
-  gchar cfg_buffer[2048] = "";
-  gchar *start = cfg_buffer;
-  gchar *end = start + sizeof(cfg_buffer);
+  return g_strdup_printf(DRIVER_TEMPLATE, driver->type, driver->name, driver->cfg);
+}
 
-  msg_debug("Current driver", evt_tag_str("name", cfg->name), evt_tag_str("cfg", cfg->cfg));
+static gchar *
+_get_logpath_of_driver(CliParam *driver)
+{
+  return g_strdup_printf(LOG_PATH_TEMPLATE, driver->type, driver->name);
+}
 
-  characters_inserted = g_snprintf(start, end-start, LOG_PATH_TEMPLATE, cfg->type, cfg->name);
-  if (characters_inserted < 1)
-    return FALSE;
-  if (g_strlcat(cfg_path, cfg_buffer, characters_inserted + 1) >= sizeof(cfg_buffer))
-    return FALSE;
+static gchar *
+_concatenate_strings(GList *elements)
+{
+  GList *element;
+  gchar *concatenated = "";
 
-  characters_inserted = g_snprintf(start, end-start, DRIVER_TEMPLATE, cfg->type, cfg->name, cfg->cfg);
-  if (characters_inserted < 1)
-    return FALSE;
-  if (g_strlcat(cfg_lines, cfg_buffer, characters_inserted + 1) >= sizeof(cfg_buffer))
-    return FALSE;
+  for (element = elements; element != NULL; element = element->next)
+    concatenated = g_strconcat(concatenated, " ", element->data, NULL);
 
-  msg_debug("_get_cfg_string", evt_tag_str("cfg_path", cfg_path));
-  msg_debug("_get_cfg_string", evt_tag_str("cfg_lines", cfg_lines));
-  return TRUE;
+  return concatenated;
+}
+
+static gchar *
+_get_config_lines_of_generated_snippets(GList *driver_configs, GList *log_paths)
+{
+  gchar *drivers_line, *log_paths_line;
+
+  drivers_line = _concatenate_strings(driver_configs);
+  log_paths_line = _concatenate_strings(log_paths);
+
+  return g_strdup_printf(CFG_FILE_TEMPLATE, SYSLOG_NG_VERSION, drivers_line, log_paths_line);
+}
+
+static void
+_inject_cfg_into_global_config(Cli *self, GlobalConfig *global_config, gchar *generated_config_lines)
+{
+  global_config->cfg_file = fmemopen(generated_config_lines, strlen(generated_config_lines), "r");
+  self->generated_config = generated_config_lines;
 }
 
 gboolean
-_inject_cfg_into_global_config(Cli *self, gchar *cfg_lines, gchar *cfg_path, GlobalConfig *global_config)
+cli_initialize_configuration(Cli *self, GlobalConfig *global_config)
 {
-  gchar generated_cfg_lines[2048] = "";
+  gchar *generated_config_lines;
+  GList *current_param;
+  GList *driver_configs = NULL;
+  GList *logpaths = NULL;
 
-  if(g_snprintf(generated_cfg_lines, sizeof(generated_cfg_lines), CFG_FILE_TEMPLATE, SYSLOG_NG_VERSION, cfg_lines,
-                cfg_path) < 1)
-    return FALSE;
-
-  msg_debug("_inject_cfg_into_global_config", evt_tag_str("generated_cfg_lines", generated_cfg_lines));
-  global_config->cfg_file = fmemopen(generated_cfg_lines, strlen(generated_cfg_lines), "r");
-  self->generated_config = generated_cfg_lines;
-  return TRUE;
-}
-
-gboolean
-cli_init_cfg(Cli *self, GlobalConfig *global_config)
-{
-  GList *current_cfg;
-  gchar cfg_lines[5000] = "";
-  gchar cfg_path[1000] = "";
-
-  for (current_cfg = self->params; current_cfg != NULL; current_cfg = current_cfg->next)
+  for (current_param = self->params; current_param != NULL; current_param = current_param->next)
     {
-      CliParam *cli_param = (CliParam *) current_cfg->data;
-      if (!_get_cfg_string(cli_param, cfg_lines, cfg_path))
-        {
-          msg_error("Failed to generate config", evt_tag_str("driver_type", cli_param->type), evt_tag_str("config", cli_param->cfg));
-          return FALSE;
-        }
+      CliParam *cli_param = (CliParam *) current_param->data;
+      gchar *driver_config = _get_config_of_driver(cli_param);
+      gchar *driver_logpath = _get_logpath_of_driver(cli_param);
+
+      driver_configs = g_list_append(driver_configs, driver_config);
+      logpaths = g_list_append(logpaths, driver_logpath);
     }
-  if (!_inject_cfg_into_global_config(self, cfg_lines, cfg_path, global_config))
-    return FALSE;
+  generated_config_lines = _get_config_lines_of_generated_snippets(driver_configs, logpaths);
+  _inject_cfg_into_global_config(self, global_config, generated_config_lines);
 
   return TRUE;
 }
 
-gboolean
+static inline gboolean
 _more_tokens(gchar *token)
 {
   return (token != NULL);
 }
 
-gboolean
+static inline gboolean
+_is_driver_type_empty(gchar *driver_type)
+{
+  if (driver_type == NULL)
+    return TRUE;
+  return FALSE;
+}
+
+static void
+_parse_driver_data(gchar *token, gchar **driver_type, gchar **driver_config)
+{
+  if (_is_driver_type_empty(*driver_type))
+    *driver_type = token;
+  else
+    *driver_config = g_strconcat(*driver_config, token, NULL);
+}
+
+static inline gboolean
 _is_driver_ending(gchar *token)
 {
   size_t token_length = strlen(token);
   return (token[token_length - 1] == ';');
 }
 
+static inline gboolean
+_is_driver_config_empty(gchar *driver_config)
+{
+  if (driver_config[0] == '\0')
+    return TRUE;
+  return FALSE;
+}
+
+static inline gboolean
+_is_driver_data_incomplete(gchar *driver_type, gchar *driver_config)
+{
+  if (_is_driver_type_empty(driver_type) || _is_driver_config_empty(driver_config))
+    return TRUE;
+  return FALSE;
+}
+
+static void
+_add_new_cli_param(Cli *cli, gchar *driver_type, gchar *driver_config)
+{
+  cli->params = g_list_append(cli->params, cli_param_new(driver_type, g_strdup(driver_config)));
+  driver_type = NULL;
+  driver_config = "";
+}
+
+static gboolean
+_parse_raw_parameter(Cli *cli, gchar *raw_param)
+{
+  gchar *token;
+  const gchar delimiter[] = " ";
+  gchar *driver_config = "";
+  gchar *driver_type = NULL;
+
+  if (!_is_driver_ending(raw_param))
+    return FALSE;
+
+  token = strtok(raw_param, delimiter);
+  while (_more_tokens(token))
+    {
+      _parse_driver_data(token, &driver_type, &driver_config);
+
+      if (_is_driver_ending(token) && _is_driver_data_incomplete(driver_type, driver_config))
+        return FALSE;
+
+      if (_is_driver_ending(token))
+        _add_new_cli_param(cli, driver_type, driver_config);
+
+      token = strtok(NULL, delimiter);
+    }
+
+  return TRUE;
+}
+
 gboolean
 cli_setup_params(Cli *cli)
 {
   guint i;
-  const gchar delimiter[2] = " ";
 
   for (i = 0; cli->raw_params[i]; i++)
     {
-      gchar driver_cfg[1000] = "";
-      gchar *current = driver_cfg;
-      gchar *end = current + sizeof(driver_cfg);
+      gchar *raw_param = g_strdup(cli->raw_params[i]);
 
-      gchar *current_arg = g_strndup(cli->raw_params[i], strlen(cli->raw_params[i]));
-      gchar *token = strtok(current_arg, delimiter);
-      gchar *driver_type = NULL;
-
-      while (_more_tokens(token))
-        {
-          if (driver_type == NULL)
-            driver_type = token;
-          else if (current < end)
-            current += g_snprintf(current, end-current, "%s ", token);
-
-          if (_is_driver_ending(token))
-            {
-              if (driver_cfg[0] == '\0')
-                {
-                  cli->params = NULL;
-                  return FALSE;
-                }
-              cli->params = g_list_append(cli->params, cli_param_new(driver_type,
-                                          g_strndup(driver_cfg, strlen(driver_cfg))));
-              driver_type = NULL;
-              driver_cfg[0] = '\0';
-              current = driver_cfg;
-            }
-          token = strtok(NULL, delimiter);
-        }
-      if (driver_type != NULL || driver_cfg[0] != '\0')
-        {
-          cli->params = NULL;
-          return FALSE;
-        }
+      if (!_parse_raw_parameter(cli, raw_param))
+        return FALSE;
     }
   return TRUE;
 }
