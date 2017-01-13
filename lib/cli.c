@@ -101,7 +101,7 @@ _inject_cfg_into_global_config(Cli *self, GlobalConfig *global_config, gchar *ge
   self->generated_config = generated_config_lines;
 }
 
-gboolean
+void
 cli_initialize_configuration(Cli *self, GlobalConfig *global_config)
 {
   gchar *generated_config_lines;
@@ -120,8 +120,6 @@ cli_initialize_configuration(Cli *self, GlobalConfig *global_config)
     }
   generated_config_lines = _get_config_lines_of_generated_snippets(driver_configs, logpaths);
   _inject_cfg_into_global_config(self, global_config, generated_config_lines);
-
-  return TRUE;
 }
 
 static inline gboolean

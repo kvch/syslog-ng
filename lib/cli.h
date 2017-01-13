@@ -48,7 +48,7 @@ typedef struct _Cli
 
 Cli *cli_new(gchar **params, gboolean is_cli_param);
 gboolean cli_setup_params(Cli *cli);
-gboolean cli_initialize_configuration(Cli *cli, GlobalConfig *global_config);
+void cli_initialize_configuration(Cli *cli, GlobalConfig *global_config);
 gboolean cli_write_generated_config_to_file(Cli *cli, gchar* filename);
 
 #endif
