@@ -31,6 +31,7 @@
 /* functions that should be implemented by GLib but they aren't */
 GString *g_string_assign_len(GString *s, const gchar *val, gint len);
 void g_string_steal(GString *s);
+gchar *str_array_join(const gchar *separator, gchar **argv);
 
 static inline GString *
 g_string_append_unichar_optimized(GString *string, gunichar wc)

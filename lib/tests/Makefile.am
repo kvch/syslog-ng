@@ -12,8 +12,7 @@ lib_tests_TESTS		= \
 	lib/tests/test_runid        	\
 	lib/tests/test_pathutils	\
 	lib/tests/test_utf8utils	\
-	lib/tests/test_userdb		\
-	lib/tests/test_str-utils
+	lib/tests/test_userdb
 
 check_PROGRAMS		+= ${lib_tests_TESTS}
 
@@ -89,11 +88,6 @@ lib_tests_test_utf8utils_CFLAGS	=	\
 lib_tests_test_utf8utils_LDADD	=	\
 	$(TEST_LDADD)
 
-lib_tests_test_str_utils_CFLAGS	=	\
-	$(TEST_CFLAGS)
-lib_tests_test_str_utils_LDADD	=	\
-	$(TEST_LDADD)
-
 CLEANFILES				+= \
 	test_values.persist		   \
 	test_values.persist-		   \
@@ -106,11 +100,17 @@ lib_tests_test_userdb_LDADD	= \
 if ENABLE_CRITERION
 
 lib_tests_TESTS		+= \
-	lib/tests/test_cache
+	lib/tests/test_cache		\
+	lib/tests/test_str-utils
 
 lib_tests_test_cache_CFLAGS	=	\
 	$(TEST_CFLAGS)
 lib_tests_test_cache_LDADD	=	\
+	$(TEST_LDADD)
+
+lib_tests_test_str_utils_CFLAGS	=	\
+	$(TEST_CFLAGS)
+lib_tests_test_str_utils_LDADD	=	\
 	$(TEST_LDADD)
 
 endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Balabit
+ * Copyright (c) 2017 Balabit
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,8 +20,8 @@
  * COPYING for details.
  *
  */
-#include "testutils.h"
 #include "str-utils.h"
+#include <criterion/criterion.h>
 
 /* this macro defines which strchr() implementation we are testing. It is
  * extracted as a macro in order to make it easy to switch strchr()
@@ -33,7 +33,7 @@
 static void
 assert_strchr_is_null(const gchar *str, int c)
 {
-  assert_null(strchr_under_test(str, c), "expected a NULL return");
+  cr_assert_null(strchr_under_test(str, c), "expected a NULL return");
 }
 
 static void
@@ -41,16 +41,15 @@ assert_strchr_finds_character_at(const gchar *str, int c, int ofs)
 {
   char *result = strchr_under_test(str, c);
 
-  assert_not_null(result, "expected a non-NULL return");
-  assert_true(result - str <= strlen(str),
-              "Expected the strchr() return value to point into the input string or the terminating NUL, it points past the NUL");
-  assert_true(result >= str,
-              "Expected the strchr() return value to point into the input string or the terminating NUL, it points before the start of the string");
-  assert_gint((result - str), ofs, "Expected the strchr() return value to point right to the specified offset");
+  cr_assert_not_null(result, "expected a non-NULL return");
+  cr_assert(result - str <= strlen(str),
+            "Expected the strchr() return value to point into the input string or the terminating NUL, it points past the NUL");
+  cr_assert(result >= str,
+            "Expected the strchr() return value to point into the input string or the terminating NUL, it points before the start of the string");
+  cr_assert_eq((result - str), ofs, "Expected the strchr() return value to point right to the specified offset");
 }
 
-int
-main(int argc G_GNUC_UNUSED, char *argv[] G_GNUC_UNUSED)
+Test(str_utils, utils)
 {
   assert_strchr_is_null("", 'x');
   assert_strchr_is_null("a", 'x');
@@ -66,6 +65,28 @@ main(int argc G_GNUC_UNUSED, char *argv[] G_GNUC_UNUSED)
   assert_strchr_finds_character_at("0123456789abcdef", '0', 0);
   assert_strchr_finds_character_at("0123456789abcdef", '7', 7);
   assert_strchr_finds_character_at("0123456789abcdef", 'f', 15);
+}
 
-  return 0;
+Test(str_utils, test_str_array_join)
+{
+  gchar *actual;
+
+  gchar *str_arr_1[] = {"guba", "kutya", NULL};
+  actual = str_array_join(" ", str_arr_1);
+  cr_assert_str_eq(actual, "guba kutya", "Expected='guba kutya', Actual='%s'", actual);
+
+  gchar *str_arr_2[] = {"guba", "gezemice", NULL};
+  actual = str_array_join(" ", str_arr_2);
+  cr_assert_str_eq(actual, "guba gezemice", "Expected='guba gezemice', Actual='%s'", actual);
+
+  gchar *str_arr_3[] = {"guba", "gezemice", "gomolya", NULL};
+  actual = str_array_join("; ", str_arr_3);
+  cr_assert_str_eq(actual, "guba; gezemice; gomolya", "Expected='guba; gezemice; gomolya', Actual='%s'", actual);
+
+  gchar *str_arr_4[] = {"guba", "gezemice", "gomolya", "galuska", NULL};
+  actual = str_array_join("  ", str_arr_4);
+  cr_assert_str_eq(actual, "guba  gezemice  gomolya  galuska", "Expected='guba  gezemice  gomolya  galuska', Actual='%s'",
+                   actual);
+
+  g_free(actual);
 }
