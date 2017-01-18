@@ -22,6 +22,7 @@
  *
  */
 #include "str-utils.h"
+#include <stdio.h>
 
 GString *
 g_string_assign_len(GString *s, const gchar *val, gint len)
@@ -59,4 +60,30 @@ gchar *
 __normalize_key(const gchar *buffer)
 {
   return str_replace_char(buffer, '-', '_');
+}
+
+size_t
+_get_str_array_len(gchar *arr[])
+{
+  size_t len = 0;
+  while (arr[len] != NULL)
+    len++;
+  return len;
+}
+
+gchar *
+str_array_join(const gchar *separator, gchar *argv[])
+{
+  size_t i;
+  gchar *result = "";
+  size_t len = _get_str_array_len(argv);
+
+  if (len == 0)
+      return NULL;
+
+  for(i = 0; i < len - 1; i++)
+    result = g_strconcat(result, argv[i], separator, NULL);
+  result = g_strconcat(result, argv[len-1], NULL);
+
+  return result;
 }
