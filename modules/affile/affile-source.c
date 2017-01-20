@@ -204,7 +204,7 @@ static LogTransport *
 affile_sd_construct_transport(AFFileSourceDriver *self, gint fd)
 {
   if (affile_is_linux_dev_stdin(self->filename->str))
-    return log_transport_stdin_new(fd);
+    return log_transport_stdin_new(fd, &self->super.super.super);
   else if (self->file_open_options.is_pipe)
     return log_transport_pipe_new(fd);
   else if (self->follow_freq > 0)
@@ -392,6 +392,12 @@ affile_sd_notify(LogPipe *s, gint notify_code, gpointer user_data)
       msg_verbose("Error while following source file, reopening in the hope it would work",
                   evt_tag_str("filename", self->filename->str));
       affile_sd_reopen_on_notify(s, FALSE);
+      break;
+    }
+    case NC_STDIN_EOF:
+    {
+      msg_verbose("Reached EOF while reading from /dev/stdin");
+      main_loop_exit();
       break;
     }
     default:
