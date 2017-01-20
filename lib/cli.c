@@ -28,15 +28,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-gchar LOG_PATH_TEMPLATE[] = "%s(%s);";
-gchar DRIVER_TEMPLATE[] = "%s %s { %s};\n";
-gchar DRIVER_NAME_TEMPLATE[] = "%s%s";
-gchar CFG_FILE_TEMPLATE[] = "@version: %s\n"
-                            "@include scl.conf\n"
-                            "source s_stdin { stdin(); };\n"
-                            "destination d_stdout { stdout(); };\n"
-                            "%s"
-                            "log {source(s_stdin);%s destination(d_stdout);};";
+const static gchar DELIMITER[] = " ";
+const static gchar LOG_PATH_TEMPLATE[] = "%s(%s);";
+const static gchar DRIVER_TEMPLATE[] = "%s %s { %s};\n";
+const static gchar DRIVER_NAME_TEMPLATE[] = "%s%s";
+const static gchar CFG_FILE_TEMPLATE[] =
+  "@version: %s\n"
+  "@include scl.conf\n"
+  "source s_stdin { stdin(); };\n"
+  "destination d_stdout { stdout(); };\n"
+  "%s"
+  "log {source(s_stdin);%s destination(d_stdout);};";
 
 
 static gchar *
@@ -180,14 +182,13 @@ static gboolean
 _parse_raw_parameter(Cli *cli, gchar *raw_param)
 {
   gchar *token;
-  const gchar delimiter[] = " ";
   gchar *driver_config = "";
   gchar *driver_type = NULL;
 
   if (!_is_driver_ending(raw_param))
     return FALSE;
 
-  token = strtok(raw_param, delimiter);
+  token = strtok(raw_param, DELIMITER);
   while (_more_tokens(token))
     {
       _parse_driver_data(token, &driver_type, &driver_config);
@@ -198,7 +199,7 @@ _parse_raw_parameter(Cli *cli, gchar *raw_param)
       if (_is_driver_ending(token))
         _add_new_cli_param(cli, driver_type, driver_config);
 
-      token = strtok(NULL, delimiter);
+      token = strtok(NULL, DELIMITER);
     }
 
   return TRUE;
