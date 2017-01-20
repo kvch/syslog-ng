@@ -444,7 +444,7 @@ static int
 _setup_cli_mode(GlobalConfig *global_config)
 {
   if (!cli_setup_params(cli))
-      return 1;
+    return 1;
 
   cli_initialize_configuration(cli, global_config);
 

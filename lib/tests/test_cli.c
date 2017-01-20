@@ -127,7 +127,7 @@ Test(cli, test_cli_initialize_config_with_one_param)
                                  "log {source(s_stdin); parser(my-name); destination(d_stdout);};";
   g_snprintf(expected_cfg, sizeof(expected_cfg), expected_cfg_template, SYSLOG_NG_VERSION);
 
-  cr_assert(cli_initialize_configuration(cli, global_config), "Succesfully initialized config");
+  cli_initialize_configuration(cli, global_config);
   cr_assert_eq(strcmp(cli->generated_config, expected_cfg), 0, "Generated: \n%s\nExpected:\n%s", cli->generated_config,
                expected_cfg);
 }
@@ -155,7 +155,7 @@ Test(cli, test_cli_initialize_config_with_two_params_param)
                                  "log {source(s_stdin); parser(my-csvparser-name); parser(my-jsonparser-name); destination(d_stdout);};";
   g_snprintf(expected_cfg, sizeof(expected_cfg), expected_cfg_template, SYSLOG_NG_VERSION);
 
-  cr_assert(cli_initialize_configuration(cli, global_config), "Succesfully initialized config");
+  cli_initialize_configuration(cli, global_config);
   cr_assert_eq(strcmp(cli->generated_config, expected_cfg), 0, "Generated: \n%s\nExpected:\n%s", cli->generated_config,
                expected_cfg);
 }
