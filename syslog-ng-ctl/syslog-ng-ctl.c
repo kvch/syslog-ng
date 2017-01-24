@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2013 Balabit
+ * Copyright (c) 2002-2017 Balabit
  * Copyright (c) 1998-2013 Balázs Scheidler
  *
  * This library is free software; you can redistribute it and/or
@@ -27,6 +27,7 @@
 #include "control-client.h"
 #include "cfg.h"
 #include "reloc.h"
+#include "str-utils.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -38,6 +39,7 @@
 
 static const gchar *control_name;
 static ControlClient *control_client;
+
 
 static gboolean
 slng_send_cmd(const gchar *cmd)
@@ -64,7 +66,33 @@ slng_run_command(const gchar *command)
   return control_client_read_reply(control_client);
 }
 
+static gint
+_dispatch_command(const gchar *cmd)
+{
+  gchar *dispatchable_command = g_strdup_printf("%s\n", cmd);
+  GString *rsp = slng_run_command(dispatchable_command);
+
+  if (rsp == NULL)
+    return 1;
+
+  printf("%s\n", rsp->str);
+
+  g_string_free(rsp, TRUE);
+  g_free(dispatchable_command);
+
+  return 0;
+}
+
 static gchar *verbose_set = NULL;
+
+static GOptionEntry verbose_options[] =
+{
+  {
+    "set", 's', 0, G_OPTION_ARG_STRING, &verbose_set,
+    "enable/disable messages", "<on|off|0|1>"
+  },
+  { NULL, 0, 0, G_OPTION_ARG_NONE, NULL, NULL }
+};
 
 static gint
 slng_verbose(int argc, char *argv[], const gchar *mode)
@@ -103,65 +131,129 @@ static GOptionEntry stats_options[] =
   { NULL,    0,   0, G_OPTION_ARG_NONE, NULL,                        NULL,             NULL }
 };
 
-static GOptionEntry verbose_options[] =
-{
-  {
-    "set", 's', 0, G_OPTION_ARG_STRING, &verbose_set,
-    "enable/disable messages", "<on|off|0|1>"
-  },
-  { NULL, 0, 0, G_OPTION_ARG_NONE, NULL, NULL }
-};
-
-
 static const gchar *
 _stats_command_builder()
 {
-  return stats_options_reset_is_set ? "RESET_STATS\n" : "STATS\n";
+  return stats_options_reset_is_set ? "RESET_STATS" : "STATS";
 }
 
 static gint
 slng_stats(int argc, char *argv[], const gchar *mode)
 {
-  GString *rsp = slng_run_command(_stats_command_builder());
-
-  if (rsp == NULL)
-    return 1;
-
-  printf("%s\n", rsp->str);
-
-  g_string_free(rsp, TRUE);
-
-  return 0;
+  return _dispatch_command(_stats_command_builder());
 }
 
 static gint
 slng_stop(int argc, char *argv[], const gchar *mode)
 {
-  GString *rsp = slng_run_command("STOP\n");
-
-  if (rsp == NULL)
-    return 1;
-
-  printf("%s\n", rsp->str);
-
-  g_string_free(rsp, TRUE);
-
-  return 0;
+  return _dispatch_command("STOP");
 }
 
 static gint
 slng_reload(int argc, char *argv[], const gchar *mode)
 {
-  GString *rsp = slng_run_command("RELOAD\n");
+  return _dispatch_command("RELOAD");
+}
 
-  if (rsp == NULL)
+const static gint QUERY_COMMAND = 0;
+static gboolean query_is_sum_aggregated = FALSE;
+static gchar **raw_query_params = NULL;
+
+static GOptionEntry query_options[] =
+{
+  { "aggregated", 0, 0, G_OPTION_ARG_NONE, &query_is_sum_aggregated, "aggregate sum", NULL },
+  { G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_STRING_ARRAY, &raw_query_params, NULL, NULL },
+  { NULL, 0, 0, G_OPTION_ARG_NONE, NULL, NULL, NULL }
+};
+
+enum
+{
+  QUERY_CMD_LIST,
+  QUERY_CMD_GET,
+  QUERY_CMD_GET_AGGREGATED
+};
+
+const static gchar *QUERY_COMMANDS[] = {"LIST", "GET", "GET_AGGREGATED"};
+
+static gint
+_get_query_cmd(gchar *cmd)
+{
+  if(g_str_equal(cmd, "list"))
+    return QUERY_CMD_LIST;
+
+  if(g_str_equal(cmd, "get") && query_is_sum_aggregated)
+    return QUERY_CMD_GET_AGGREGATED;
+
+  if(g_str_equal(cmd, "get"))
+    return QUERY_CMD_GET;
+
+  return -1;
+}
+
+static gboolean
+_is_query_params_empty()
+{
+  return raw_query_params == NULL;
+}
+
+static void
+_shift_query_command_out_of_params()
+{
+  if (raw_query_params[QUERY_COMMAND] != NULL)
+    *raw_query_params = *(raw_query_params++);
+}
+
+static gboolean
+_validate_get_params(gint query_cmd)
+{
+  if(query_cmd == QUERY_CMD_GET || query_cmd == QUERY_CMD_GET_AGGREGATED)
+    if (*raw_query_params == NULL)
+      {
+        fprintf(stderr, "error: need a path argument\n");
+        return TRUE;
+      }
+  return FALSE;
+}
+
+static gchar *
+_get_dispatchable_query_command()
+{
+  gint query_cmd;
+  gchar *query_params_to_pass, *command_to_dispatch;
+
+  if (_is_query_params_empty())
+    return NULL;
+
+  query_cmd = _get_query_cmd(raw_query_params[QUERY_COMMAND]);
+  if (query_cmd < 0)
+    return NULL;
+
+  _shift_query_command_out_of_params();
+  if(_validate_get_params(query_cmd))
+    return NULL;
+
+  query_params_to_pass = str_array_join(" ", raw_query_params);
+  command_to_dispatch = g_strdup_printf("QUERY %s %s", QUERY_COMMANDS[query_cmd], query_params_to_pass);
+
+  g_free(query_params_to_pass);
+
+  return command_to_dispatch;
+}
+
+static gint
+slng_query(int argc, char *argv[], const gchar *mode)
+{
+  gint result;
+
+  gchar *cmd = _get_dispatchable_query_command();
+  if (cmd == NULL)
     return 1;
 
-  printf("%s\n", rsp->str);
+  result = _dispatch_command(cmd);
 
-  g_string_free(rsp, TRUE);
+  g_free(cmd);
 
-  return 0;
+  return result;
 }
 
 static GOptionEntry no_options[] =
@@ -211,6 +303,7 @@ static struct
   { "trace", verbose_options, "Enable/query trace messages", slng_verbose },
   { "stop", no_options, "Stop syslog-ng process", slng_stop },
   { "reload", no_options, "Reload syslog-ng", slng_reload },
+  { "query", query_options, "Dummy query for testing", slng_query },
   { NULL, NULL },
 };
 
