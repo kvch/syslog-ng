@@ -198,6 +198,12 @@ _stats_build_query_key(StatsCluster *self)
   return g_string_free(key, FALSE);
 }
 
+gboolean
+stats_cluster_is_alive(StatsCluster *self, gint type)
+{
+  return ((1<<type) & self->live_mask);
+}
+
 StatsCluster *
 stats_cluster_new(gint component, const gchar *id, const gchar *instance)
 {
