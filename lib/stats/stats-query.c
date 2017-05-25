@@ -27,6 +27,7 @@
 #include "stats.h"
 
 #include <string.h>
+#include <stdio.h>
 
 
 static GHashTable *counter_index;

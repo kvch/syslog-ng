@@ -24,6 +24,9 @@
 
 
 #include "stats-views.h"
+#include "stats-cluster-single.h"
+
+#include <stdio.h>
 
 static void
 _calculate_written_messages(GList *counters, StatsCounterItem **result)
@@ -58,7 +61,7 @@ _calculate_written_messages(GList *counters, StatsCounterItem **result)
 }
 
 static gchar *
-_construct_view_name(StatsCluster *cluster)
+_construct_written_view_name(StatsCluster *cluster)
 {
   GString *name = g_string_new(cluster->query_key);
   name = g_string_append(name, ".written");
@@ -66,11 +69,10 @@ _construct_view_name(StatsCluster *cluster)
 }
 
 static void
-_index_required_written_counters(StatsCluster *cluster)
+_index_required_counters(StatsCluster *cluster, gint *counter_types, gint counter_count)
 {
-  stats_query_index_counter(cluster, SC_TYPE_QUEUED);
-  stats_query_index_counter(cluster, SC_TYPE_DROPPED);
-  stats_query_index_counter(cluster, SC_TYPE_PROCESSED);
+  for (gint i = 0; i < counter_count; i++)
+    stats_query_index_counter(cluster, counter_types[i]);
 }
 
 void
@@ -78,14 +80,86 @@ stats_register_written_view(StatsCluster *cluster, StatsCounterItem *processed, 
                             StatsCounterItem *queued)
 {
   GList *written_query = NULL;
+  gint counter_types[] = { SC_TYPE_QUEUED, SC_TYPE_DROPPED, SC_TYPE_PROCESSED };
+  gsize counter_types_len = sizeof(counter_types) / sizeof(counter_types[0]);
   gchar *written_view_name;
 
-  written_view_name = _construct_view_name(cluster);
-  _index_required_written_counters(cluster);
+  written_view_name = _construct_written_view_name(cluster);
+  _index_required_counters(cluster, counter_types, counter_types_len);
 
   written_query = g_list_append(written_query, g_strdup(stats_counter_get_name(queued)));
   written_query = g_list_append(written_query, g_strdup(stats_counter_get_name(processed)));
   written_query = g_list_append(written_query, g_strdup(stats_counter_get_name(dropped)));
 
   stats_register_view(written_view_name, written_query, _calculate_written_messages);
+}
+
+static gchar *
+_construct_fillup_rate_view_name(StatsCluster *cluster)
+{
+  GString *name = g_string_new(cluster->query_key);
+  name = g_string_append(name, ".fillup_rate");
+  return g_string_free(name, FALSE);
+}
+
+void
+_calculate_fifo_fillup_rate(GList *counters, StatsCounterItem **result)
+{
+  StatsCounterItem *number_of_messages_in_queue = NULL, *queue_capacity = NULL;
+  gint rate = 0;
+
+  for (GList *c = counters; c; c = c->next)
+    {
+      StatsCounterItem *counter = c->data;
+      if (counter->type == SC_TYPE_SINGLE_VALUE && g_str_has_suffix(stats_counter_get_name(counter), ".mem_capacity_count"))
+        queue_capacity = counter;
+      else if (counter->type == SC_TYPE_QUEUED)
+        number_of_messages_in_queue = counter;
+    }
+
+  g_assert(number_of_messages_in_queue != NULL || queue_capacity != NULL);
+
+  rate = stats_counter_get(number_of_messages_in_queue) / stats_counter_get(queue_capacity);
+  stats_counter_set(*result, rate);
+}
+
+void
+_calculate_diskq_fillup_rate(GList *counters, StatsCounterItem **result)
+{
+  StatsCounterItem *number_of_messages_in_queue = NULL, *queue_capacity = NULL;
+  gint rate = 0;
+
+  for (GList *c = counters; c; c = c->next)
+    {
+      StatsCounterItem *counter = c->data;
+      if (counter->type == SC_TYPE_SINGLE_VALUE && g_str_has_suffix(stats_counter_get_name(counter), ".disk_capacity_byte"))
+        queue_capacity = counter;
+      else if (counter->type == SC_TYPE_QUEUED)
+        number_of_messages_in_queue = counter;
+    }
+
+  g_assert(number_of_messages_in_queue != NULL || queue_capacity != NULL);
+
+  rate = stats_counter_get(number_of_messages_in_queue) / stats_counter_get(queue_capacity);
+  stats_counter_set(*result, rate);
+}
+
+void
+stats_register_fifo_fillup_rate(StatsCluster *cluster_of_actual, StatsCluster *cluster_of_max, StatsCounterItem *actual,
+                                StatsCounterItem *max)
+{
+  GList *fillup_rate_query = NULL;
+  gint counter_type_of_actual[] = { SC_TYPE_QUEUED };
+  gint counter_type_of_max[] = { 0 };
+
+  g_assert(actual != NULL || max != NULL || cluster_of_actual != NULL || cluster_of_max != NULL);
+
+  gchar *fillup_rate_name = _construct_fillup_rate_view_name(cluster_of_actual);
+  _index_required_counters(cluster_of_actual, counter_type_of_actual, 1);
+  _index_required_counters(cluster_of_max, counter_type_of_max, 1);
+
+  fillup_rate_query = g_list_append(fillup_rate_query, g_strdup(stats_counter_get_name(actual)));
+  fillup_rate_query = g_list_append(fillup_rate_query, g_strdup(stats_counter_get_name(max)));
+
+  stats_register_view(fillup_rate_name, fillup_rate_query, _calculate_fifo_fillup_rate);
 }

@@ -200,6 +200,11 @@ stats_unregister_dynamic_counter(StatsCluster *sc, gint type, StatsCounterItem *
   stats_cluster_untrack_counter(sc, type, counter);
 }
 
+StatsCluster *stats_registry_lookup_cluster(StatsClusterKey *sc_key)
+{
+  return g_hash_table_lookup(stats_cluster_container, sc_key);
+}
+
 static void
 _foreach_cluster_helper(gpointer key, gpointer value, gpointer user_data)
 {
