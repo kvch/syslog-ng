@@ -27,11 +27,14 @@
 #include "stats.h"
 
 #include <string.h>
+#include <stdio.h>
 
 
 static GHashTable *counter_index;
 static GStaticMutex stats_query_mutex = G_STATIC_MUTEX_INIT;
 static GHashTable *stats_views;
+
+FILE *fp;
 
 typedef struct _ViewRecord
 {
@@ -59,6 +62,10 @@ stats_register_view(gchar *name, GList *queries, const AggregatedMetricsCb aggre
   record->queries = queries;
   record->aggregate = aggregate;
   g_hash_table_insert(stats_views, name, record);
+
+  fprintf(fp, "view_registered name='%s' (%p), view_record='%p', ctr='%p', ctr_name='%s', (%p)\n",
+          name, name, record, record->counter, record->counter->name, record->counter->name);
+  fflush(fp);
 }
 
 static void
@@ -151,6 +158,9 @@ static gboolean
 _is_pattern_matches_key(GPatternSpec *pattern, gpointer key)
 {
   gchar *counter_name = (gchar *) key;
+  fprintf(stderr, "key: %s\n", counter_name);
+  if (counter_name == NULL)
+      return FALSE;
   return g_pattern_match_string(pattern, counter_name);
 }
 
@@ -233,6 +243,7 @@ _get_aggregated_counters_from_views(GList *views)
 static GList *
 _get_views(const gchar *filter)
 {
+  fprintf(stderr, "filter: %s\n", filter);
   GPatternSpec *pattern = g_pattern_spec_new(filter);
   GList *views = NULL;
   gpointer key, value;
@@ -247,7 +258,11 @@ _get_views(const gchar *filter)
     {
       if (_is_pattern_matches_key(pattern, key))
         {
+          fprintf(stderr, "matching filter: %s\n", filter);
           ViewRecord *view = (ViewRecord *) value;
+          fprintf(fp, "view lookup name='%s' (%p), view_record='%p', ctr='%p', ctr_name='%s', (%p)\n",
+          (gchar *)key, key, view, view->counter, view->counter->name, view->counter->name);
+          fflush(fp);
           views = g_list_append(views, view);
 
           if (single_match)
@@ -446,6 +461,7 @@ stats_query_init(void)
 {
   counter_index = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, NULL);
   stats_views = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, _free_view_record);
+  fp = fopen("/tmp/laszlo", "a");
 }
 
 void
