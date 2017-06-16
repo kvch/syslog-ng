@@ -34,11 +34,10 @@ typedef void (*LogQueuePushNotifyFunc)(gpointer user_data);
 
 typedef struct _LogQueue LogQueue;
 
-typedef char *QueueType;
 
 struct _LogQueue
 {
-  QueueType type;
+  const gchar *queue_type;
   GAtomicCounter ref_cnt;
   gboolean use_backlog;
 
